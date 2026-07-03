@@ -163,7 +163,7 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
                       Shadow(
                         offset: Offset(0, 1),
                         blurRadius: 4.0,
-                        color: Colors.black50,
+                        color: Colors.black54,
                       ),
                     ],
                   ),
@@ -190,7 +190,7 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
           ),
           const SizedBox(height: 10),
           Row(
-            mainAxisAlignment: MainAxisAlignment.between,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               if (widget.task.dueDate != null)
                 Row(
@@ -207,7 +207,7 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
                 const SizedBox.shrink(),
               if (widget.task.categoryIds.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, py: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.18),
                     borderRadius: BorderRadius.circular(8),

@@ -61,7 +61,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.between,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,7 +262,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.between,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'TASKS (${filteredTasks.length})',
@@ -420,7 +420,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ],
                           ),
                           trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, py: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: _getPriorityBgColor(task.priority),
                               borderRadius: BorderRadius.circular(6),
@@ -992,7 +992,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(height: 16),
 
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.between,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
                           child: Text(
@@ -1025,7 +1025,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                     // Subtasks checklist engine
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.between,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('SUBTASKS CHECKLIST', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
                         Text(
@@ -1143,7 +1143,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               setDetailState(() {});
                             }
                           },
-                          icon: const Icon(Icons.multimedia_loop_rounded, size: 16),
+                          icon: const Icon(Icons.music_note_rounded, size: 16),
                           label: const Text('Alert Sound', style: TextStyle(fontSize: 11)),
                         ),
                         // Delete Button
