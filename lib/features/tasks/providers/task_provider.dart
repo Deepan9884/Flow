@@ -148,6 +148,21 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     _loadTasks();
   }
 
+  Future<void> updateTaskStatusAndPriority(String taskId, bool isCompleted, int priority) async {
+    final taskIndex = state.indexWhere((t) => t.uuid == taskId);
+    if (taskIndex == -1) return;
+    final task = state[taskIndex];
+    final updatedTask = task.copyWith(
+      isCompleted: isCompleted,
+      priority: priority,
+      updatedAt: DateTime.now(),
+    );
+    await _isar.writeTxn(() async {
+      await _isar.tasks.put(updatedTask);
+    });
+    _loadTasks();
+  }
+
   Future<void> updateTaskWallpaper(String taskId, String path) async {
     final taskIndex = state.indexWhere((t) => t.uuid == taskId);
     if (taskIndex == -1) return;
