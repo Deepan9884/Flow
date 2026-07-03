@@ -31,7 +31,18 @@ import {
   MessageSquare,
   Cpu,
   Bot,
-  Zap
+  Zap,
+  Cloud,
+  Mic,
+  Image as ImageIcon,
+  TrendingUp,
+  User,
+  Download,
+  RefreshCw,
+  AlertCircle,
+  Eye,
+  Repeat,
+  Lock
 } from 'lucide-react';
 import {
   pubspecTemplate,
@@ -45,6 +56,7 @@ import {
   categoryTemplate
 } from './codeTemplates';
 import { Task, Category, ThemeConfig, SettingsState, PriorityLevel, Subtask } from './types';
+import { FlowLogoWide, FlowLogoCompact, FlowAppIcon } from './components/FlowLogo';
 
 // Web Audio API synthesizer for clean, zero-external-dependency, platform-native audio previews
 const playSyntheticSound = (type: string) => {
@@ -515,8 +527,20 @@ export default function App() {
   });
 
   // Simulator navigation state
-  const [selectedView, setSelectedView] = useState<'list' | 'kanban' | 'calendar' | 'new_task' | 'settings' | 'appearance'>('list');
+  const [selectedView, setSelectedView] = useState<'list' | 'kanban' | 'calendar' | 'new_task' | 'settings' | 'appearance' | 'mine'>('list');
   const [activeDetailTaskId, setActiveDetailTaskId] = useState<string | null>(null);
+
+  // Google Drive Sync states
+  const [driveConnected, setDriveConnected] = useState<boolean>(false);
+  const [driveSyncing, setDriveSyncing] = useState<boolean>(false);
+  const [lastDriveSync, setLastDriveSync] = useState<string | null>(null);
+  const [showDriveSyncModal, setShowDriveSyncModal] = useState<boolean>(false);
+
+  // Audio recording simulation states
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
+  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+  const [audioPlaybackProgress, setAudioPlaybackProgress] = useState<number>(0);
 
   // Detail task drawer state hoisted to top-level to avoid Hook ordering violations
   const [newSubtaskText, setNewSubtaskText] = useState('');
@@ -573,6 +597,38 @@ export default function App() {
       localStorage.setItem('flow_settings', JSON.stringify(settings));
     }
   }, [settings, isMounted]);
+
+  // Audio recording simulation timer
+  useEffect(() => {
+    let interval: any;
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [isRecording]);
+
+  // Audio playback simulation timer
+  useEffect(() => {
+    let interval: any;
+    if (isPlayingAudio) {
+      interval = setInterval(() => {
+        setAudioPlaybackProgress(prev => {
+          if (prev >= 100) {
+            setIsPlayingAudio(false);
+            return 0;
+          }
+          return prev + 2; // Increments to 100 in 50 steps
+        });
+      }, 200);
+    } else {
+      setAudioPlaybackProgress(0);
+    }
+    return () => clearInterval(interval);
+  }, [isPlayingAudio]);
 
   const [activeKanbanCol, setActiveKanbanCol] = useState<'todo' | 'in_progress' | 'done'>('todo');
 
@@ -897,13 +953,14 @@ export default function App() {
       {/* Top Banner & Title Panel */}
       <header className="border-b border-slate-800 bg-slate-950/70 backdrop-blur px-6 py-4 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
+          <div className="flex items-center gap-3.5">
+            <FlowAppIcon size={44} className="shadow-lg shadow-red-500/10" />
             <div>
-              <h1 className="font-display text-xl font-bold tracking-tight">Flow Workspace</h1>
-              <p className="text-xs text-slate-400">Phase 1 Flutter Todo Scaffold &amp; Stitch Design Verification</p>
+              <div className="flex items-center gap-2">
+                <FlowLogoCompact height={20} />
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full border border-red-500/15">Workspace</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Phase 1 Flutter Todo Scaffold &amp; Stitch Design Verification</p>
             </div>
           </div>
           
@@ -1008,7 +1065,7 @@ export default function App() {
                     <button className="p-2 rounded-full hover:bg-slate-100/10 transition" style={{ color: appPrimaryColor }}>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
                     </button>
-                    <span className="font-bold text-lg tracking-tight" style={{ color: appPrimaryColor }}>Flow</span>
+                    <FlowLogoCompact height={18} />
                     <button onClick={() => setSelectedView('settings')} className="p-2 rounded-full hover:bg-slate-100/10 transition" style={{ color: appPrimaryColor }}>
                       <Settings className="w-5 h-5" />
                     </button>
@@ -1852,6 +1909,32 @@ export default function App() {
                       </button>
                     </div>
 
+                    {/* Google Drive Account Sync row */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2" style={{ color: appTextMutedColor }}>Cloud Backup &amp; Sync</span>
+                      <button 
+                        onClick={() => setShowDriveSyncModal(true)}
+                        className="w-full flex items-center justify-between p-3 rounded-2xl border text-left shadow-sm hover:bg-slate-100/5 transition"
+                        style={{ backgroundColor: appSurfaceColor, borderColor: appBorderColor }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${driveConnected ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                            <Cloud className="w-4 h-4 animate-none" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-semibold flex items-center gap-1.5">
+                              Google Drive Sync
+                              {driveConnected && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-none" />}
+                            </span>
+                            <span className="text-[9px] block opacity-60">
+                              {driveConnected ? `Synced backup • ${lastDriveSync || 'Just now'}` : 'Sync tasks & backup securely to Google Cloud'}
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-400 font-bold" />
+                      </button>
+                    </div>
+
                     {/* System Preferences Section */}
                     <div className="space-y-1.5">
                       <span className="text-[10px] uppercase font-bold tracking-wider px-2" style={{ color: appTextMutedColor }}>System Preferences</span>
@@ -2251,7 +2334,159 @@ export default function App() {
                   </div>
                 </div>
               )}
+              
+              {/* VIEW: MINE (STATISTICS & CHARTS) */}
+              {selectedView === 'mine' && (
+                <div 
+                  className="flex-grow flex flex-col overflow-hidden"
+                  style={{ backgroundColor: themeConfig.appWallpaperPath ? 'transparent' : appBgColor, color: appTextColor }}
+                >
+                  <header className="px-5 py-3 flex justify-between items-center border-b shrink-0" style={{ borderColor: appBorderColor }}>
+                    <div className="w-5 h-5"></div>
+                    <span className="font-bold text-sm tracking-tight" style={{ color: appTextColor }}>Mine</span>
+                    <button onClick={() => setSelectedView('settings')} className="p-1 rounded-full hover:bg-slate-200/10 text-slate-400">
+                      <Settings className="w-4 h-4" />
+                    </button>
+                  </header>
 
+                  <div className="flex-grow overflow-y-auto px-4 py-4 space-y-5 no-scrollbar">
+                    {/* Hero section */}
+                    <div className="flex items-center gap-4 bg-gradient-to-br from-blue-500/10 to-indigo-500/5 p-4 rounded-3xl border border-blue-500/10 shadow-sm animate-none" style={{ backgroundColor: appSurfaceColor }}>
+                      <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg shadow-md shrink-0">
+                        JD
+                      </div>
+                      <div className="flex-grow">
+                        <h3 className="text-xs font-bold leading-tight" style={{ color: appTextColor }}>Jane Doe</h3>
+                        <p className="text-[9px] opacity-60" style={{ color: appTextMutedColor }}>Professional Task Optimizer</p>
+                        <div className="flex items-center gap-1 mt-1 text-[8px] text-blue-500 font-bold bg-blue-500/10 px-1.5 py-0.5 rounded-full w-fit">
+                          <Cloud className="w-2.5 h-2.5 animate-none" />
+                          <span>{driveConnected ? 'Synced with Google Drive' : 'Sync Offline'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Numeric Stats Grid */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 rounded-2xl p-3 text-center space-y-1">
+                        <span className="text-[9px] uppercase font-bold tracking-wider text-emerald-600 dark:text-emerald-400 block">Completed Tasks</span>
+                        <span className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{80 + tasks.filter(t => t.isCompleted).length}</span>
+                        <span className="text-[8px] opacity-50 block" style={{ color: appTextMutedColor }}>Keep up the momentum!</span>
+                      </div>
+                      
+                      <div className="bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/10 rounded-2xl p-3 text-center space-y-1">
+                        <span className="text-[9px] uppercase font-bold tracking-wider text-blue-600 dark:text-blue-400 block">Pending Tasks</span>
+                        <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">{10 + tasks.filter(t => !t.isCompleted).length}</span>
+                        <span className="text-[8px] opacity-50 block" style={{ color: appTextMutedColor }}>In progress &amp; backlog</span>
+                      </div>
+                    </div>
+
+                    {/* Category Ratio Pie/Donut Chart */}
+                    <div className="rounded-2xl border p-4 space-y-3 shadow-sm" style={{ backgroundColor: appSurfaceColor, borderColor: appBorderColor }}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold tracking-wider" style={{ color: appTextMutedColor }}>Open Tasks Categories</span>
+                        <TrendingUp className="w-3.5 h-3.5 opacity-50" />
+                      </div>
+
+                      <div className="flex items-center justify-around gap-2">
+                        {/* Custom SVG Donut Chart */}
+                        <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
+                          <svg className="w-full h-full transform -rotate-90 animate-none" viewBox="0 0 36 36">
+                            {/* Base grey background circle */}
+                            <circle cx="18" cy="18" r="15.915" fill="none" stroke={themeConfig.isDark ? '#334155' : '#e2e8f0'} strokeWidth="3" />
+                            
+                            {/* Segment 1: Work (45%) */}
+                            <circle cx="18" cy="18" r="15.915" fill="none" stroke="#0058be" strokeWidth="3.5" 
+                                    strokeDasharray="45 100" strokeDashoffset="0" />
+                            {/* Segment 2: Personal (25%) */}
+                            <circle cx="18" cy="18" r="15.915" fill="none" stroke="#495e8a" strokeWidth="3.5" 
+                                    strokeDasharray="25 100" strokeDashoffset="-45" />
+                            {/* Segment 3: Meeting (15%) */}
+                            <circle cx="18" cy="18" r="15.915" fill="none" stroke="#7c3aed" strokeWidth="3.5" 
+                                    strokeDasharray="15 100" strokeDashoffset="-70" />
+                            {/* Segment 4: Other (15%) */}
+                            <circle cx="18" cy="18" r="15.915" fill="none" stroke="#ea580c" strokeWidth="3.5" 
+                                    strokeDasharray="15 100" strokeDashoffset="-85" />
+                          </svg>
+                          <div className="absolute flex flex-col items-center justify-center text-center">
+                            <span className="text-[12px] font-bold" style={{ color: appTextColor }}>100%</span>
+                            <span className="text-[7px] opacity-60" style={{ color: appTextMutedColor }}>Ratio</span>
+                          </div>
+                        </div>
+
+                        {/* Legends */}
+                        <div className="space-y-1 text-[9px] flex-grow pl-2" style={{ color: appTextColor }}>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-[#0058be] shrink-0" />
+                            <span className="font-semibold">Work (45%)</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-[#495e8a] shrink-0" />
+                            <span className="font-semibold">Personal (25%)</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
+                            <span className="font-semibold">Meeting (15%)</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-[#ea580c] shrink-0" />
+                            <span className="font-semibold">Other (15%)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Daily Completion Bar Chart */}
+                    <div className="rounded-2xl border p-4 space-y-4 shadow-sm" style={{ backgroundColor: appSurfaceColor, borderColor: appBorderColor }}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold tracking-wider" style={{ color: appTextMutedColor }}>Daily task complete</span>
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500">Weekly View</span>
+                      </div>
+
+                      <div className="flex items-end justify-between pt-1 px-2">
+                        {[
+                          { day: 'Mon', count: 3, percentage: '37.5%' },
+                          { day: 'Tue', count: 5, percentage: '62.5%' },
+                          { day: 'Wed', count: 7, percentage: '87.5%' },
+                          { day: 'Thu', count: 4, percentage: '50%' },
+                          { day: 'Fri', count: 8, percentage: '100%' },
+                        ].map((item) => (
+                          <div key={item.day} className="flex flex-col items-center gap-1 flex-1">
+                            <span className="text-[8px] font-mono font-bold opacity-60 mb-0.5" style={{ color: appTextColor }}>
+                              {item.count}
+                            </span>
+                            <div className="w-4 bg-slate-100 dark:bg-slate-800 rounded-t-sm h-16 relative flex items-end">
+                              <div 
+                                className="w-full rounded-t-sm transition-all duration-500 hover:opacity-85"
+                                style={{ 
+                                  backgroundColor: appPrimaryColor,
+                                  height: item.percentage
+                                }}
+                              />
+                            </div>
+                            <span className="text-[8px] opacity-60 mt-1" style={{ color: appTextColor }}>{item.day}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Next 7 Days Coming Tasks */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2" style={{ color: appTextMutedColor }}>Tasks in next 7 days</span>
+                      <div className="rounded-2xl border p-1 space-y-1 shadow-sm" style={{ backgroundColor: appSurfaceColor, borderColor: appBorderColor }}>
+                        {tasks.filter(t => !t.isCompleted).slice(0, 3).map(t => (
+                          <div key={t.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-500/5 cursor-pointer" onClick={() => setActiveDetailTaskId(t.id)}>
+                            <div className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: appPrimaryColor }} />
+                              <span className="text-xs font-semibold truncate max-w-[140px]" style={{ color: appTextColor }}>{t.title}</span>
+                            </div>
+                            <span className="text-[9px] font-mono opacity-60" style={{ color: appTextMutedColor }}>{t.dueDate || 'No Date'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
 
               {/* TASK DETAIL BOTTOM DRAWER PANEL */}
@@ -2487,6 +2722,251 @@ export default function App() {
                           </div>
                         </div>
 
+                        {/* PHOTO ATTACHMENTS SECTION */}
+                        <div className="space-y-2 border-t pt-2.5" style={{ borderColor: appBorderColor }}>
+                          <div className="flex justify-between items-center">
+                            <span className="text-[9px] uppercase font-bold tracking-wider opacity-60 flex items-center gap-1">
+                              <ImageIcon className="w-3.5 h-3.5 text-blue-500" /> Photo Attachments
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const presets = [
+                                  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=150&auto=format&fit=crop&q=60', // Beach
+                                  'https://images.unsplash.com/photo-1472214222541-d510753a4907?w=150&auto=format&fit=crop&q=60', // Sunset
+                                  'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=150&auto=format&fit=crop&q=60', // Coding
+                                  'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=150&auto=format&fit=crop&q=60', // Coffee
+                                ];
+                                const randomPreset = presets[Math.floor(Math.random() * presets.length)];
+                                const currentPhotos = task.photoAttachments || [];
+                                setTasks(tasks.map(t => t.id === task.id ? { 
+                                  ...t, 
+                                  photoAttachments: [...currentPhotos, randomPreset],
+                                  updatedAt: new Date().toISOString()
+                                } : t));
+                              }}
+                              className="text-[9px] font-bold text-blue-500 hover:underline"
+                            >
+                              + Add Preset Photo
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-2">
+                            {/* Native file upload box */}
+                            <label className="aspect-square rounded-xl border border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-slate-500/5 transition" style={{ borderColor: appBorderColor }}>
+                              <Plus className="w-4 h-4 text-slate-400" />
+                              <span className="text-[7px] text-slate-400 font-semibold mt-0.5">Upload</span>
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      const currentPhotos = task.photoAttachments || [];
+                                      setTasks(tasks.map(t => t.id === task.id ? { 
+                                        ...t, 
+                                        photoAttachments: [...currentPhotos, reader.result as string],
+                                        updatedAt: new Date().toISOString()
+                                      } : t));
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </label>
+
+                            {/* Render Photo Thumbnails */}
+                            {(task.photoAttachments || []).map((url, idx) => (
+                              <div key={idx} className="aspect-square rounded-xl bg-cover bg-center border relative group overflow-hidden" style={{ backgroundImage: `url(${url})`, borderColor: appBorderColor }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTasks(tasks.map(t => t.id === task.id ? { 
+                                      ...t, 
+                                      photoAttachments: (t.photoAttachments || []).filter((_, i) => i !== idx),
+                                      updatedAt: new Date().toISOString()
+                                    } : t));
+                                  }}
+                                  className="absolute top-1 right-1 w-4.5 h-4.5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md active:scale-90 transition"
+                                >
+                                  <X className="w-2.5 h-2.5 stroke-[3px]" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* VOICE NOTE RECORDER AND PLAYER SECTION */}
+                        <div className="space-y-2 border-t pt-2.5" style={{ borderColor: appBorderColor }}>
+                          <span className="text-[9px] uppercase font-bold tracking-wider opacity-60 flex items-center gap-1">
+                            <Mic className="w-3.5 h-3.5 text-blue-500" /> Voice Instructions
+                          </span>
+
+                          {!task.audioNoteUrl ? (
+                            /* Recorder layout */
+                            <div className="flex items-center justify-between p-2.5 rounded-xl border" style={{ backgroundColor: appBgColor, borderColor: appBorderColor }}>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-3.5 h-3.5 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-700'} flex items-center justify-center shrink-0`}>
+                                  {isRecording && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                                </div>
+                                <span className="text-xs font-semibold">
+                                  {isRecording ? `Recording... 00:${recordingSeconds.toString().padStart(2, '0')}` : 'No voice notes recorded'}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (isRecording) {
+                                    // Stop recording
+                                    setIsRecording(false);
+                                    playSyntheticSound('Digital');
+                                    setTasks(tasks.map(t => t.id === task.id ? { 
+                                      ...t, 
+                                      audioNoteUrl: 'simulated_voice_note_url',
+                                      updatedAt: new Date().toISOString()
+                                    } : t));
+                                  } else {
+                                    // Start recording
+                                    setIsRecording(true);
+                                    playSyntheticSound('Bell');
+                                  }
+                                }}
+                                className="px-2.5 py-1 rounded-lg text-white font-bold text-[10px] hover:opacity-90 active:scale-95 transition"
+                                style={{ backgroundColor: isRecording ? '#dc2626' : appPrimaryColor }}
+                              >
+                                {isRecording ? 'Stop' : 'Record'}
+                              </button>
+                            </div>
+                          ) : (
+                            /* Player layout */
+                            <div className="p-2.5 rounded-xl border space-y-2" style={{ backgroundColor: appBgColor, borderColor: appBorderColor }}>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-blue-500 flex items-center gap-1">
+                                  <Volume2 className="w-3.5 h-3.5" /> Recorded Voice Instruction
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsPlayingAudio(false);
+                                    setTasks(tasks.map(t => t.id === task.id ? { 
+                                      ...t, 
+                                      audioNoteUrl: undefined,
+                                      updatedAt: new Date().toISOString()
+                                    } : t));
+                                  }}
+                                  className="text-slate-400 hover:text-red-500"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                {/* Play/Pause Trigger */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (isPlayingAudio) {
+                                      setIsPlayingAudio(false);
+                                    } else {
+                                      setIsPlayingAudio(true);
+                                      playSyntheticSound('Marimba');
+                                    }
+                                  }}
+                                  className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600 transition shrink-0 shadow-sm active:scale-90"
+                                >
+                                  {isPlayingAudio ? (
+                                    <div className="flex gap-0.5 justify-center">
+                                      <div className="w-1.5 h-3 bg-white rounded-2xs" />
+                                      <div className="w-1.5 h-3 bg-white rounded-2xs" />
+                                    </div>
+                                  ) : (
+                                    <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                                  )}
+                                </button>
+
+                                {/* Animated Sound Wave Viz */}
+                                <div className="flex-grow flex items-center gap-0.5 h-8">
+                                  {Array.from({ length: 24 }).map((_, i) => {
+                                    // Generate responsive wave heights
+                                    const rawHeights = [12, 18, 24, 16, 8, 14, 20, 26, 18, 12, 16, 22, 14, 10, 18, 24, 14, 8, 12, 20, 16, 10, 14, 8];
+                                    const barHeight = rawHeights[i] || 12;
+                                    const isFilled = isPlayingAudio && (i < (audioPlaybackProgress / 100) * 24);
+                                    
+                                    return (
+                                      <span
+                                        key={i}
+                                        className="w-[3px] rounded-full transition-colors duration-200 animate-none"
+                                        style={{
+                                          height: `${barHeight}px`,
+                                          backgroundColor: isFilled ? appPrimaryColor : (themeConfig.isDark ? '#475569' : '#cbd5e1')
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Running countdown timer */}
+                                <span className="text-[9px] font-mono opacity-60 whitespace-nowrap shrink-0">
+                                  00:{Math.round(49 * (audioPlaybackProgress / 100)).toString().padStart(2, '0')} / 00:49
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* RECURRENCE AND REMINDER TIME SETTINGS ROW */}
+                        <div className="grid grid-cols-2 gap-3 border-t pt-2.5" style={{ borderColor: appBorderColor }}>
+                          <div className="space-y-1">
+                            <span className="text-[9px] uppercase font-bold tracking-wider opacity-60 flex items-center gap-1">
+                              <Repeat className="w-3 h-3 text-blue-500" /> Repeat Task
+                            </span>
+                            <select
+                              value={task.recurrence?.frequency || 'none'}
+                              onChange={(e) => {
+                                const freq = e.target.value;
+                                const rule = freq === 'none' ? undefined : { frequency: freq as any, interval: 1 };
+                                setTasks(tasks.map(t => t.id === task.id ? { ...t, recurrence: rule, updatedAt: new Date().toISOString() } : t));
+                              }}
+                              className="w-full border rounded-xl py-1.5 px-2 bg-transparent font-semibold focus:outline-none cursor-pointer text-[11px]"
+                              style={{ borderColor: appBorderColor }}
+                            >
+                              <option value="none" className="text-black">🔁 No Repeat</option>
+                              <option value="daily" className="text-black">🔄 Daily Repeat</option>
+                              <option value="weekly" className="text-black">🔄 Weekly Repeat</option>
+                              <option value="monthly" className="text-black">🔄 Monthly Repeat</option>
+                              <option value="yearly" className="text-black">🔄 Yearly Repeat</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[9px] uppercase font-bold tracking-wider opacity-60 flex items-center gap-1">
+                              <Lock className="w-3 h-3 text-blue-500" /> Task App Lock
+                            </span>
+                            <div className="flex items-center justify-between p-1.5 border rounded-xl h-[31px]" style={{ borderColor: appBorderColor }}>
+                              <span className="text-[10px] opacity-60">Locked in app</span>
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  const currentFields = task.customFields || {};
+                                  const nextLocked = !currentFields.isLocked;
+                                  setTasks(tasks.map(t => t.id === task.id ? { 
+                                    ...t, 
+                                    customFields: { ...currentFields, isLocked: nextLocked },
+                                    updatedAt: new Date().toISOString()
+                                  } : t));
+                                }}
+                                className={`w-8 h-4 rounded-full transition relative shrink-0 ${task.customFields?.isLocked ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                              >
+                                <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-all ${task.customFields?.isLocked ? 'translate-x-4' : ''}`} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
                         <div className="space-y-1.5 border-t pt-2.5" style={{ borderColor: appBorderColor }}>
                           <span className="text-[9px] uppercase font-bold tracking-wider opacity-60 font-sans">Sound Alert</span>
                           <div className="flex gap-1.5 items-center">
@@ -2554,6 +3034,7 @@ export default function App() {
                     { id: 'list', label: 'Tasks', icon: CheckSquare },
                     { id: 'kanban', label: 'Kanban', icon: LayoutGrid },
                     { id: 'calendar', label: 'Calendar', icon: Calendar },
+                    { id: 'mine', label: 'Mine', icon: User },
                     { id: 'settings', label: 'Settings', icon: Settings },
                   ].map((tab) => {
                     const isActive = selectedView === tab.id || (tab.id === 'settings' && selectedView === 'appearance');
@@ -2573,6 +3054,139 @@ export default function App() {
                       </button>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Google Drive Sync overlay modal */}
+              {showDriveSyncModal && (
+                <div className="absolute inset-0 bg-black/70 flex items-center justify-center p-4 z-[999] backdrop-blur-[1px]">
+                  <div className="bg-slate-900 rounded-3xl border border-slate-800 p-5 text-center max-w-[280px] w-full space-y-4 shadow-2xl animate-in fade-in zoom-in duration-200">
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Cloud className="w-3.5 h-3.5 text-blue-500 animate-none" />
+                        Google Drive Sync
+                      </span>
+                      <button 
+                        onClick={() => setShowDriveSyncModal(false)}
+                        className="text-slate-400 hover:text-slate-200"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {driveSyncing ? (
+                      /* Syncing/Connecting Spinner */
+                      <div className="py-8 space-y-4">
+                        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                        <p className="text-[11px] font-bold text-slate-300">
+                          {driveConnected ? 'Syncing local SQLite backup...' : 'Authenticating via secure Google login...'}
+                        </p>
+                        <p className="text-[9px] text-slate-500">Please do not close the application.</p>
+                      </div>
+                    ) : !driveConnected ? (
+                      /* Not Connected layout */
+                      <div className="space-y-4 text-left">
+                        <div className="text-center py-2">
+                          <Cloud className="w-12 h-12 text-slate-600 mx-auto animate-pulse mb-2" />
+                          <p className="text-xs font-semibold text-slate-300">Cloud Backup &amp; Restore</p>
+                          <p className="text-[9px] text-slate-400 mt-0.5">Secure your task lists and custom settings presets in real-time.</p>
+                        </div>
+
+                        <div className="space-y-2 text-[10px] text-slate-400">
+                          <div className="flex items-start gap-1.5">
+                            <span className="text-blue-500 font-bold shrink-0">✓</span>
+                            <span>Sync changes across your web, mobile, and desktop devices instantly.</span>
+                          </div>
+                          <div className="flex items-start gap-1.5">
+                            <span className="text-blue-500 font-bold shrink-0">✓</span>
+                            <span>Restorable backups in case of cache clear or accidental loss.</span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Start connecting simulation
+                            setDriveSyncing(true);
+                            playSyntheticSound('Digital');
+                            setTimeout(() => {
+                              setDriveSyncing(false);
+                              setDriveConnected(true);
+                              setLastDriveSync('Just now');
+                              playSyntheticSound('Bell');
+                            }, 1800);
+                          }}
+                          className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-xs font-bold rounded-xl text-white transition active:scale-95 text-center flex items-center justify-center gap-1.5 shadow-md shadow-blue-900/30"
+                        >
+                          <Cloud className="w-3.5 h-3.5" />
+                          Connect Google Account
+                        </button>
+                      </div>
+                    ) : (
+                      /* Connected layout */
+                      <div className="space-y-4 text-left">
+                        <div className="bg-slate-950/40 p-3 rounded-2xl border border-emerald-500/10 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                            <span className="text-xs font-bold text-emerald-400">Cloud Sync Active</span>
+                          </div>
+                          <div className="space-y-0.5 text-[10px]">
+                            <div className="flex justify-between"><span className="text-slate-500">Connected As:</span><span className="font-semibold text-slate-300">jane.doe@gmail.com</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500">Last Synced:</span><span className="font-semibold text-slate-300">{lastDriveSync || 'Offline'}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-500">Backup Size:</span><span className="font-semibold text-slate-300">2.1 KB</span></div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDriveSyncing(true);
+                              playSyntheticSound('Digital');
+                              setTimeout(() => {
+                                setDriveSyncing(false);
+                                setLastDriveSync('Just now');
+                                playSyntheticSound('Bell');
+                              }, 1200);
+                            }}
+                            className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-xs font-bold rounded-xl text-white transition flex items-center justify-center gap-1.5 active:scale-95"
+                          >
+                            <Cloud className="w-3.5 h-3.5" />
+                            Sync Now (Backup)
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDriveSyncing(true);
+                              playSyntheticSound('Digital');
+                              setTimeout(() => {
+                                setDriveSyncing(false);
+                                playSyntheticSound('Bell');
+                                // Simulating download of mock cloud database
+                                alert("Data restore simulation completed! Downstream backup has been applied cleanly.");
+                              }, 1400);
+                            }}
+                            className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl text-slate-300 transition text-center active:scale-95"
+                          >
+                            Restore Backup from Cloud
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDriveConnected(false);
+                              setLastDriveSync('');
+                              playSyntheticSound('Digital');
+                            }}
+                            className="w-full py-1.5 text-center text-[10px] text-red-400 hover:text-red-500 transition font-bold"
+                          >
+                            Disconnect Google Account
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -2642,6 +3256,9 @@ export default function App() {
 
         {/* Right Column: Code & Specs Workspace (Span 7) */}
         <section className="lg:col-span-7 flex flex-col gap-4">
+          
+          {/* Official Branding Logo Banner Showcase */}
+          <FlowLogoWide height={210} className="w-full shrink-0" />
           
           {/* Design Specs Overview capsule */}
           <div className="bg-slate-950/40 border border-slate-800 rounded-2xl p-5 shadow-lg">

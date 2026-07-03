@@ -4,7 +4,7 @@ import 'package:isar/isar.dart';
 part 'theme_config.freezed.dart';
 part 'theme_config.g.dart';
 
-@Collection(ignore: {'copyWith'})
+@Collection(ignore: {'copyWith', 'id'})
 @freezed
 class ThemeConfig with _$ThemeConfig {
   const ThemeConfig._();
@@ -21,6 +21,7 @@ class ThemeConfig with _$ThemeConfig {
   }) = _ThemeConfig;
 
   // Isar integer identity generated via stable hashing of unique String ID
+  @Id()
   Id get isarId => id.hashCode;
 
   factory ThemeConfig.fromJson(Map<String, dynamic> json) => _$ThemeConfigFromJson(json);

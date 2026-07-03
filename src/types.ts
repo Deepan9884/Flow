@@ -17,6 +17,8 @@ export interface Task {
   notes?: string;
   dueDate?: string; // ISO string or human-readable
   reminderAt?: string;
+  reminderDate?: string;
+  reminderTime?: string;
   priority: PriorityLevel;
   isCompleted: boolean;
   categoryIds: string[];
@@ -29,6 +31,8 @@ export interface Task {
   wallpaperPath?: string;
   soundPath?: string;
   wallpaperOffsetY?: number;
+  audioNoteUrl?: string;
+  photoAttachments?: string[];
 }
 
 export interface Category {

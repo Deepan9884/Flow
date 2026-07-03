@@ -4,7 +4,7 @@ import 'package:isar/isar.dart';
 part 'category.freezed.dart';
 part 'category.g.dart';
 
-@Collection(ignore: {'copyWith'})
+@Collection(ignore: {'copyWith', 'id'})
 @freezed
 class Category with _$Category {
   const Category._();
@@ -17,6 +17,7 @@ class Category with _$Category {
   }) = _Category;
 
   // Isar integer identity mapping from stable string hashing
+  @Id()
   Id get isarId => id.hashCode;
 
   factory Category.fromJson(Map<String, dynamic> json) => _$CategoryFromJson(json);
