@@ -15,7 +15,7 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
   final Isar _isar = AppDatabase.instance;
 
   Future<void> _loadCategories() async {
-    final categories = await _isar.categories.where().findAll();
+    final categories = await _isar.categorys.where().findAll();
     
     if (categories.isEmpty) {
       // Seed default categories matching elegant design colors
@@ -28,7 +28,7 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
 
       await _isar.writeTxn(() async {
         for (var cat in defaults) {
-          await _isar.categories.put(cat);
+          await _isar.categorys.put(cat);
         }
       });
       state = defaults;
@@ -50,7 +50,7 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
     );
 
     await _isar.writeTxn(() async {
-      await _isar.categories.put(category);
+      await _isar.categorys.put(category);
     });
 
     _loadCategories();
@@ -59,7 +59,7 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
   Future<void> deleteCategory(String categoryId) async {
     final hashId = categoryId.hashCode;
     await _isar.writeTxn(() async {
-      await _isar.categories.delete(hashId);
+      await _isar.categorys.delete(hashId);
     });
     _loadCategories();
   }

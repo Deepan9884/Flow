@@ -1,0 +1,9 @@
+One last fix!
+
+Isar's code generator is highly literal when it creates collection accessors on the `Isar` object. For a class named `Category`, instead of identifying it as an English word and generating `_isar.categories`, it naively appends an "s" and generates `_isar.categorys`.
+
+In `lib/features/categories/providers/category_provider.dart`, the code was calling `_isar.categories`, causing the compiler to throw the error: `The getter 'categories' isn't defined for the class 'Isar'`. 
+
+I have replaced all instances of `_isar.categories` with `_isar.categorys` so that it perfectly maps to Isar's auto-generated schema!
+
+You can now commit and push this final change. The GitHub Actions pipeline should now cleanly compile your release APK!
