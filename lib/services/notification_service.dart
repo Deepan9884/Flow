@@ -52,7 +52,7 @@ class NotificationService {
     final scheduleTime = task.reminderAt!;
     if (scheduleTime.isBefore(DateTime.now())) return;
 
-    final int notificationId = task.id.hashCode;
+    final int notificationId = task.uuid.hashCode;
     
     // Check if the app is active in the foreground - if so, play via just_audio directly.
     // In a real app we'd query AppLifecycleState, but here we provide playForegroundSound
@@ -64,12 +64,12 @@ class NotificationService {
     if (task.soundPath != null && task.soundPath!.isNotEmpty) {
       // Channels are immutable. If the sound changes, we generate a new channel ID.
       // We derive the channel ID from the task ID and sound path hash.
-      final String channelId = 'task_channel_${task.id}_${task.soundPath.hashCode}';
+      final String channelId = 'task_channel_${task.uuid}_${task.soundPath.hashCode}';
       final String channelName = 'Task Reminder: ${task.title}';
 
       // Use a FileProvider URI on Android pointing to the stored sound file
       final UriAndroidNotificationSound customSound =
-          UriAndroidNotificationSound('content://flow_todo_fileprovider/sounds/${task.id}');
+          UriAndroidNotificationSound('content://flow_todo_fileprovider/sounds/${task.uuid}');
 
       androidDetails = AndroidNotificationDetails(
         channelId,

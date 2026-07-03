@@ -213,7 +213,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       itemCount: categories.length + 1,
                       itemBuilder: (context, index) {
                         final isAll = index == 0;
-                        final categoryId = isAll ? 'all' : categories[index - 1].id;
+                        final categoryId = isAll ? 'all' : categories[index - 1].uuid;
                         final categoryName = isAll ? 'All Tasks' : categories[index - 1].name;
                         final isSelected = _selectedCategoryId == categoryId;
                         final Color tagColor = isAll
@@ -324,10 +324,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       Color bulletColor = const Color(0xFF0058BE);
                       if (task.categoryIds.isNotEmpty) {
                         final matchedCat = categories.firstWhere(
-                          (c) => c.id == task.categoryIds.first,
-                          orElse: () => const Category(id: '', name: '', colorValue: 0xFF0058BE),
+                          (c) => c.uuid == task.categoryIds.first,
+                          orElse: () => const Category(uuid: '', name: '', colorValue: 0xFF0058BE),
                         );
-                        if (matchedCat.id.isNotEmpty) {
+                        if (matchedCat.uuid.isNotEmpty) {
                           bulletColor = Color(matchedCat.colorValue);
                         }
                       }
@@ -344,7 +344,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           onTap: () => _showTaskDetailSheet(context, task),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                           leading: GestureDetector(
-                            onTap: () => ref.read(taskListProvider.notifier).toggleTask(task.id),
+                            onTap: () => ref.read(taskListProvider.notifier).toggleTask(task.uuid),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               width: 26,
@@ -714,7 +714,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         hint: const Text('Select a category', style: TextStyle(fontSize: 13)),
                         items: categories.map((c) {
                           return DropdownMenuItem<String>(
-                            value: c.id,
+                            value: c.uuid,
                             child: Row(
                               children: [
                                 Container(
@@ -945,7 +945,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           builder: (context, setDetailState) {
             // Re-fetch current state of task to ensure fresh data
             final currentTasks = ref.watch(taskListProvider);
-            final currentTaskIndex = currentTasks.indexWhere((t) => t.id == task.id);
+            final currentTaskIndex = currentTasks.indexWhere((t) => t.uuid == task.uuid);
             if (currentTaskIndex == -1) return const SizedBox.shrink();
             final liveTask = currentTasks[currentTaskIndex];
 
@@ -1008,7 +1008,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             size: 28,
                           ),
                           onPressed: () {
-                            ref.read(taskListProvider.notifier).toggleTask(liveTask.id);
+                            ref.read(taskListProvider.notifier).toggleTask(liveTask.uuid);
                           },
                         ),
                       ],
@@ -1048,7 +1048,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           return CheckboxListTile(
                             value: sub.isDone,
                             onChanged: (val) {
-                              ref.read(taskListProvider.notifier).toggleSubtask(liveTask.id, sub.id);
+                              ref.read(taskListProvider.notifier).toggleSubtask(liveTask.uuid, sub.uuid);
                             },
                             title: Text(
                               sub.title,
@@ -1085,7 +1085,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           onPressed: () {
                             final text = subtaskController.text.trim();
                             if (text.isNotEmpty) {
-                              ref.read(taskListProvider.notifier).addSubtask(liveTask.id, text);
+                              ref.read(taskListProvider.notifier).addSubtask(liveTask.uuid, text);
                               subtaskController.clear();
                               setDetailState(() {});
                             }
@@ -1128,7 +1128,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           onPressed: () async {
                             final path = await MediaImportService.pickAndSaveImage();
                             if (path != null) {
-                              await ref.read(taskListProvider.notifier).updateTaskWallpaper(liveTask.id, path);
+                              await ref.read(taskListProvider.notifier).updateTaskWallpaper(liveTask.uuid, path);
                               setDetailState(() {});
                             }
                           },
@@ -1139,7 +1139,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           onPressed: () async {
                             final path = await MediaImportService.pickAndSaveAudio();
                             if (path != null) {
-                              await ref.read(taskListProvider.notifier).updateTaskSound(liveTask.id, path);
+                              await ref.read(taskListProvider.notifier).updateTaskSound(liveTask.uuid, path);
                               setDetailState(() {});
                             }
                           },
@@ -1149,7 +1149,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         // Delete Button
                         TextButton.icon(
                           onPressed: () {
-                            ref.read(taskListProvider.notifier).deleteTask(liveTask.id);
+                            ref.read(taskListProvider.notifier).deleteTask(liveTask.uuid);
                             Navigator.pop(context);
                           },
                           icon: const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 18),

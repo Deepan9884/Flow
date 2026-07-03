@@ -50,7 +50,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     String? soundPath,
   }) async {
     final task = Task(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      uuid: DateTime.now().microsecondsSinceEpoch.toString(),
       title: title,
       notes: notes,
       dueDate: dueDate,
@@ -76,7 +76,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
   }
 
   Future<void> toggleTask(String taskId) async {
-    final taskIndex = state.indexWhere((t) => t.id == taskId);
+    final taskIndex = state.indexWhere((t) => t.uuid == taskId);
     if (taskIndex == -1) return;
 
     final task = state[taskIndex];
@@ -101,13 +101,13 @@ class TaskNotifier extends StateNotifier<List<Task>> {
   }
 
   Future<void> addSubtask(String taskId, String subtaskTitle) async {
-    final taskIndex = state.indexWhere((t) => t.id == taskId);
+    final taskIndex = state.indexWhere((t) => t.uuid == taskId);
     if (taskIndex == -1) return;
 
     final task = state[taskIndex];
     final subtasks = List<Subtask>.from(task.subtasks);
     subtasks.add(Subtask(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      uuid: DateTime.now().microsecondsSinceEpoch.toString(),
       title: subtaskTitle,
       isDone: false,
     ));
@@ -125,12 +125,12 @@ class TaskNotifier extends StateNotifier<List<Task>> {
   }
 
   Future<void> toggleSubtask(String taskId, String subtaskId) async {
-    final taskIndex = state.indexWhere((t) => t.id == taskId);
+    final taskIndex = state.indexWhere((t) => t.uuid == taskId);
     if (taskIndex == -1) return;
 
     final task = state[taskIndex];
     final subtasks = task.subtasks.map((s) {
-      if (s.id == subtaskId) {
+      if (s.uuid == subtaskId) {
         return s.copyWith(isDone: !s.isDone);
       }
       return s;
@@ -149,7 +149,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
   }
 
   Future<void> updateTaskWallpaper(String taskId, String path) async {
-    final taskIndex = state.indexWhere((t) => t.id == taskId);
+    final taskIndex = state.indexWhere((t) => t.uuid == taskId);
     if (taskIndex == -1) return;
 
     final task = state[taskIndex];
@@ -166,7 +166,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
   }
 
   Future<void> updateTaskSound(String taskId, String path) async {
-    final taskIndex = state.indexWhere((t) => t.id == taskId);
+    final taskIndex = state.indexWhere((t) => t.uuid == taskId);
     if (taskIndex == -1) return;
 
     final task = state[taskIndex];

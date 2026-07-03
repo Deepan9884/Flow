@@ -20,10 +20,10 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
     if (categories.isEmpty) {
       // Seed default categories matching elegant design colors
       final defaults = [
-        const Category(id: 'work', name: 'Work', colorValue: 0xFF0058BE, iconName: 'work_rounded'),
-        const Category(id: 'personal', name: 'Personal', colorValue: 0xFF10B981, iconName: 'person_rounded'),
-        const Category(id: 'shopping', name: 'Shopping', colorValue: 0xFFF59E0B, iconName: 'shopping_bag_rounded'),
-        const Category(id: 'health', name: 'Health', colorValue: 0xFFEF4444, iconName: 'favorite_rounded'),
+        const Category(uuid: 'work', name: 'Work', colorValue: 0xFF0058BE, iconName: 'work_rounded'),
+        const Category(uuid: 'personal', name: 'Personal', colorValue: 0xFF10B981, iconName: 'person_rounded'),
+        const Category(uuid: 'shopping', name: 'Shopping', colorValue: 0xFFF59E0B, iconName: 'shopping_bag_rounded'),
+        const Category(uuid: 'health', name: 'Health', colorValue: 0xFFEF4444, iconName: 'favorite_rounded'),
       ];
 
       await _isar.writeTxn(() async {
@@ -43,7 +43,7 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
     String? iconName,
   }) async {
     final category = Category(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      uuid: DateTime.now().microsecondsSinceEpoch.toString(),
       name: name,
       colorValue: colorValue,
       iconName: iconName ?? 'label_rounded',

@@ -6,13 +6,13 @@ import 'recurrence_rule.dart';
 part 'task.freezed.dart';
 part 'task.g.dart';
 
-@Collection(ignore: {'copyWith', 'id'})
+@Collection(ignore: {'copyWith'})
 @freezed
 class Task with _$Task {
   const Task._();
 
   const factory Task({
-    required String id,
+    required String uuid,
     required String title,
     String? notes,
     DateTime? dueDate,
@@ -24,13 +24,13 @@ class Task with _$Task {
     RecurrenceRule? recurrence,
     required DateTime createdAt,
     required DateTime updatedAt,
-    Map<String, dynamic>? customFields,
+    @ignore Map<String, dynamic>? customFields,
     String? wallpaperPath, // local file path to imported banner background image
     String? soundPath,     // local file path to imported custom audio file
   }) = _Task;
 
   // Hash code mapping for unique integer identification in Isar collections
-  Id get isarId => id.hashCode;
+  Id get isarId => uuid.hashCode;
 
   factory Task.fromJson(Map<String, dynamic> json) => _$TaskFromJson(json);
 }

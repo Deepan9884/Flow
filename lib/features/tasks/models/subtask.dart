@@ -10,7 +10,7 @@ class Subtask with _$Subtask {
   const Subtask._();
 
   const factory Subtask({
-    @Default('') String id,
+    @Default('') String uuid,
     @Default('') String title,
     @Default(false) bool isDone,
   }) = _Subtask;
@@ -18,12 +18,12 @@ class Subtask with _$Subtask {
   factory Subtask.fromJson(Map<String, dynamic> json) => _$SubtaskFromJson(json);
 
   Subtask copyWith({
-    String? id,
+    String? uuid,
     String? title,
     bool? isDone,
   }) {
     return Subtask(
-      id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
       title: title ?? this.title,
       isDone: isDone ?? this.isDone,
     );
