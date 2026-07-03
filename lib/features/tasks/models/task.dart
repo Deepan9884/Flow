@@ -30,7 +30,6 @@ class Task with _$Task {
   }) = _Task;
 
   // Hash code mapping for unique integer identification in Isar collections
-  @Id()
   Id get isarId => id.hashCode;
 
   factory Task.fromJson(Map<String, dynamic> json) => _$TaskFromJson(json);

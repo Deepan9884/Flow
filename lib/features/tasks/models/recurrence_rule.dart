@@ -12,12 +12,24 @@ enum RecurrenceFrequency {
 }
 
 @embedded
-@freezed
+@Freezed(copyWith: false)
 class RecurrenceRule with _$RecurrenceRule {
+  const RecurrenceRule._();
+
   const factory RecurrenceRule({
-    @Default(RecurrenceFrequency.none) RecurrenceFrequency frequency,
+    @enumerated @Default(RecurrenceFrequency.none) RecurrenceFrequency frequency,
     @Default(1) int interval,
   }) = _RecurrenceRule;
 
   factory RecurrenceRule.fromJson(Map<String, dynamic> json) => _$RecurrenceRuleFromJson(json);
+
+  RecurrenceRule copyWith({
+    RecurrenceFrequency? frequency,
+    int? interval,
+  }) {
+    return RecurrenceRule(
+      frequency: frequency ?? this.frequency,
+      interval: interval ?? this.interval,
+    );
+  }
 }

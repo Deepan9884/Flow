@@ -5,8 +5,10 @@ part 'subtask.freezed.dart';
 part 'subtask.g.dart';
 
 @embedded
-@freezed
+@Freezed(copyWith: false)
 class Subtask with _$Subtask {
+  const Subtask._();
+
   const factory Subtask({
     @Default('') String id,
     @Default('') String title,
@@ -14,4 +16,16 @@ class Subtask with _$Subtask {
   }) = _Subtask;
 
   factory Subtask.fromJson(Map<String, dynamic> json) => _$SubtaskFromJson(json);
+
+  Subtask copyWith({
+    String? id,
+    String? title,
+    bool? isDone,
+  }) {
+    return Subtask(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      isDone: isDone ?? this.isDone,
+    );
+  }
 }

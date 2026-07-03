@@ -21,7 +21,6 @@ class ThemeConfig with _$ThemeConfig {
   }) = _ThemeConfig;
 
   // Isar integer identity generated via stable hashing of unique String ID
-  @Id()
   Id get isarId => id.hashCode;
 
   factory ThemeConfig.fromJson(Map<String, dynamic> json) => _$ThemeConfigFromJson(json);

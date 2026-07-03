@@ -17,7 +17,6 @@ class Category with _$Category {
   }) = _Category;
 
   // Isar integer identity mapping from stable string hashing
-  @Id()
   Id get isarId => id.hashCode;
 
   factory Category.fromJson(Map<String, dynamic> json) => _$CategoryFromJson(json);
