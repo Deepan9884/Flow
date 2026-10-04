@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../models/task.dart';
@@ -807,6 +806,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 lastDate: DateTime.now().add(const Duration(days: 365)),
                               );
                               if (date != null) {
+                                if (!context.mounted) return;
                                 final time = await showTimePicker(
                                   context: context,
                                   initialTime: TimeOfDay.now(),
@@ -851,6 +851,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 lastDate: DateTime.now().add(const Duration(days: 365)),
                               );
                               if (date != null) {
+                                if (!context.mounted) return;
                                 final time = await showTimePicker(
                                   context: context,
                                   initialTime: TimeOfDay.now(),
@@ -919,7 +920,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           pickedWallpaperPath = path;
                         });
                       },
-                      label: "Custom Banner Wallpaper",
+                      label: 'Custom Banner Wallpaper',
                     ),
                     const SizedBox(height: 10),
 
@@ -962,7 +963,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     const Text('Task Specific Sound', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                     const SizedBox(height: 2),
                                     Text(
-                                      pickedSoundPath != null ? "Sound imported successfully" : "Tap to pick custom notification ringtone",
+                                      pickedSoundPath != null ? 'Sound imported successfully' : 'Tap to pick custom notification ringtone',
                                       style: TextStyle(color: Colors.grey[600], fontSize: 10),
                                     ),
                                   ],
@@ -1034,9 +1035,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             if (currentTaskIndex == -1) return const SizedBox.shrink();
             final liveTask = currentTasks[currentTaskIndex];
             final categories = ref.watch(categoryListProvider);
-
-            final hasWallpaper = liveTask.wallpaperPath != null && liveTask.wallpaperPath!.isNotEmpty;
-            final File? wallpaperFile = hasWallpaper ? File(liveTask.wallpaperPath!) : null;
 
             return Container(
               decoration: const BoxDecoration(
@@ -1188,7 +1186,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         children: [
                           const Icon(Icons.event_note_rounded, size: 16, color: Color(0xFF0058BE)),
                           const SizedBox(width: 8),
-                          Text('Due Date: ', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          const Text('Due Date: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                           Text(_formatDate(liveTask.dueDate!), style: const TextStyle(fontSize: 12)),
                         ],
                       ),
@@ -1212,11 +1210,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         onTap: () async {
                           final date = await showDatePicker(
                             context: context,
-                            initialDate: liveTask.reminderAt!,
+                            initialDate: liveTask.reminderAt,
                             firstDate: DateTime.now().subtract(const Duration(days: 1)),
                             lastDate: DateTime.now().add(const Duration(days: 365)),
                           );
                           if (date != null) {
+                            if (!context.mounted) return;
                             final time = await showTimePicker(
                               context: context,
                               initialTime: TimeOfDay.fromDateTime(liveTask.reminderAt!),
@@ -1260,6 +1259,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             lastDate: DateTime.now().add(const Duration(days: 365)),
                           );
                           if (date != null) {
+                            if (!context.mounted) return;
                             final time = await showTimePicker(
                               context: context,
                               initialTime: TimeOfDay.now(),

@@ -11,7 +11,7 @@ class WallpaperPickerTile extends StatelessWidget {
     super.key,
     this.currentWallpaperPath,
     required this.onPicked,
-    this.label = "Custom Wallpaper",
+    this.label = 'Custom Wallpaper',
   });
 
   Future<void> _pickWallpaper(BuildContext context) async {
@@ -70,7 +70,7 @@ class WallpaperPickerTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      hasWallpaper ? "Tap to change image" : "Tap to pick background image",
+                      hasWallpaper ? 'Tap to change image' : 'Tap to pick background image',
                       style: TextStyle(color: Colors.grey[600], fontSize: 11),
                     ),
                   ],

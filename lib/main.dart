@@ -19,10 +19,10 @@ void main() async {
         child: Container(
           color: const Color(0xFFF8F9FA),
           padding: const EdgeInsets.all(24),
-          child: Center(
+          child: const Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Icon(Icons.error_outline_rounded, size: 48, color: Color(0xFF0058BE)),
                 SizedBox(height: 16),
                 Text(

@@ -17,7 +17,7 @@ class RecurrenceRule with _$RecurrenceRule {
   const RecurrenceRule._();
 
   const factory RecurrenceRule({
-    @enumerated @Default(RecurrenceFrequency.none) RecurrenceFrequency frequency,
+    @enumerated @Default(RecurrenceFrequency.none) RecurrenceFrequency frequency, // ignore: invalid_annotation_target
     @Default(1) int interval,
   }) = _RecurrenceRule;
 

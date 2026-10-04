@@ -7,6 +7,7 @@ import '../models/recurrence_rule.dart';
 import '../utils/recurrence.dart';
 import '../utils/task_order.dart';
 import '../../../core/db/app_database.dart';
+import '../../../core/theme/theme_config.dart';
 import '../../../services/notification_service.dart';
 
 final taskListProvider = StateNotifierProvider<TaskNotifier, List<Task>>((ref) {

@@ -17,7 +17,7 @@ class MainShell extends HookConsumerWidget {
     final theme = ref.watch(themeProvider);
     final isDark = theme.isDark;
 
-    final screens = const [
+    const screens = [
       HomeScreen(),
       KanbanScreen(),
       CalendarScreen(),

@@ -15,16 +15,16 @@ class Task with _$Task {
     required String uuid,
     required String title,
     String? notes,
-    @Index() DateTime? dueDate,
+    @Index() DateTime? dueDate, // ignore: invalid_annotation_target
     DateTime? reminderAt,
     @Default(0) int priority, // 0 = Low, 1 = Medium, 2 = High, 3 = Critical
-    @Index() @Default(false) bool isCompleted,
+    @Index() @Default(false) bool isCompleted, // ignore: invalid_annotation_target
     required List<String> categoryIds,
     required List<Subtask> subtasks,
     RecurrenceRule? recurrence,
     required DateTime createdAt,
     required DateTime updatedAt,
-    @ignore Map<String, dynamic>? customFields,
+    @ignore Map<String, dynamic>? customFields, // ignore: invalid_annotation_target
     String? wallpaperPath, // local file path to imported banner background image
     String? soundPath,     // local file path to imported custom audio file
   }) = _Task;
