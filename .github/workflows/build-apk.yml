@@ -31,6 +31,9 @@ jobs:
       - name: Recreate Android Project files
         run: flutter create --platforms=android --project-name=flow_todo .
 
+      - name: Remove template widget test
+        run: rm -f test/widget_test.dart
+
       - name: Install Dependencies
         run: flutter pub get
 

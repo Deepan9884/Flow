@@ -1,3 +1,4 @@
+﻿import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:isar/isar.dart';
 import 'package:uuid/uuid.dart';
@@ -22,9 +23,25 @@ class TaskNotifier extends StateNotifier<List<Task>> {
   final Isar _isar = AppDatabase.instance;
 
   Future<void> _loadTasks() async {
-    final tasks = await _isar.tasks.where().findAll();
-    // Sort tasks: uncompleted first, then by priority (descending), then by due date
-    _sortAndSetState(tasks);
+    try {
+      final tasks = await _isar.tasks.where().findAll();
+      // Sort tasks: uncompleted first, then by priority (descending), then by due date
+      _sortAndSetState(tasks);
+    } catch (e) {
+      debugPrint('Flow TaskNotifier load failed: $e');
+    }
+  }
+
+  /// Runs [op] inside a write transaction. Storage failures are logged and
+  /// swallowed so a full/corrupt disk degrades instead of crashing the app.
+  Future<void> _guardedWrite(Future<void> Function() op) async {
+    try {
+      await _isar.writeTxn(() async {
+        await op();
+      });
+    } catch (e) {
+      debugPrint('Flow TaskNotifier write failed: $e');
+    }
   }
 
   /// Reads the user-facing notifications kill-switch (defaults to on).
@@ -59,6 +76,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     int priority = 0,
     List<String> categoryIds = const [],
     String? wallpaperPath,
+    double wallpaperOffsetY = 0.0,
     String? soundPath,
     RecurrenceRule? recurrence,
   }) async {
@@ -76,10 +94,11 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       createdAt: now,
       updatedAt: now,
       wallpaperPath: wallpaperPath,
+      wallpaperOffsetY: wallpaperOffsetY,
       soundPath: soundPath,
     );
 
-    await _isar.writeTxn(() async {
+    await _guardedWrite(() async {
       await _isar.tasks.put(task);
     });
 
@@ -99,7 +118,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _isar.writeTxn(() async {
+    await _guardedWrite(() async {
       await _isar.tasks.put(updatedTask);
     });
 
@@ -115,7 +134,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
 
   Future<void> deleteTask(String taskId) async {
     final hashId = taskId.hashCode;
-    await _isar.writeTxn(() async {
+    await _guardedWrite(() async {
       await _isar.tasks.delete(hashId);
     });
     await NotificationService.cancelTaskReminder(taskId);
@@ -139,7 +158,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _isar.writeTxn(() async {
+    await _guardedWrite(() async {
       await _isar.tasks.put(updatedTask);
     });
 
@@ -163,7 +182,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _isar.writeTxn(() async {
+    await _guardedWrite(() async {
       await _isar.tasks.put(updatedTask);
     });
 
@@ -179,7 +198,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       priority: priority,
       updatedAt: DateTime.now(),
     );
-    await _isar.writeTxn(() async {
+    await _guardedWrite(() async {
       await _isar.tasks.put(updatedTask);
     });
     if (isCompleted) {
@@ -207,7 +226,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: now,
     );
 
-    await _isar.writeTxn(() async {
+    await _guardedWrite(() async {
       await _isar.tasks.put(next);
     });
 
@@ -225,7 +244,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _isar.writeTxn(() async {
+    await _guardedWrite(() async {
       await _isar.tasks.put(updatedTask);
     });
 
@@ -245,7 +264,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _isar.writeTxn(() async {
+    await _guardedWrite(() async {
       await _isar.tasks.put(updatedTask);
     });
 
@@ -262,7 +281,24 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _isar.writeTxn(() async {
+    await _guardedWrite(() async {
+      await _isar.tasks.put(updatedTask);
+    });
+
+    await _loadTasks();
+  }
+
+  Future<void> updateTaskWallpaperOffset(String taskId, double offsetY) async {
+    final taskIndex = state.indexWhere((t) => t.uuid == taskId);
+    if (taskIndex == -1) return;
+
+    final task = state[taskIndex];
+    final updatedTask = task.copyWith(
+      wallpaperOffsetY: offsetY.clamp(-1.0, 1.0),
+      updatedAt: DateTime.now(),
+    );
+
+    await _guardedWrite(() async {
       await _isar.tasks.put(updatedTask);
     });
 

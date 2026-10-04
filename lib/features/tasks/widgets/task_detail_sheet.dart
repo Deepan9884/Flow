@@ -26,9 +26,9 @@ void showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
             final categories = ref.watch(categoryListProvider);
 
             return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
                 ),
@@ -63,6 +63,26 @@ void showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
                         categoryLabel: resolveCategoryLabel(categories, liveTask),
                       ),
                     ),
+                    if (liveTask.wallpaperPath != null && liveTask.wallpaperPath!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.vertical_align_center_rounded, size: 16, color: Colors.grey),
+                          Expanded(
+                            child: Slider(
+                              value: liveTask.wallpaperOffsetY.clamp(-1.0, 1.0),
+                              min: -1.0,
+                              max: 1.0,
+                              divisions: 20,
+                              label: 'Crop position',
+                              onChanged: (v) {
+                                ref.read(taskListProvider.notifier).updateTaskWallpaperOffset(liveTask.uuid, v);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 16),
 
                     Row(

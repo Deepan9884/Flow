@@ -102,15 +102,7 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
     final hasWallpaper = widget.task.wallpaperPath != null && widget.task.wallpaperPath!.isNotEmpty;
     final File? wallpaperFile = hasWallpaper ? File(widget.task.wallpaperPath!) : null;
 
-    double alignmentY = 0.0;
-    if (widget.task.customFields != null && widget.task.customFields!['wallpaperOffsetY'] != null) {
-      final val = widget.task.customFields!['wallpaperOffsetY'];
-      if (val is num) {
-        alignmentY = val.toDouble();
-      } else if (val is String) {
-        alignmentY = double.tryParse(val) ?? 0.0;
-      }
-    }
+    final double alignmentY = widget.task.wallpaperOffsetY.clamp(-1.0, 1.0);
 
     final Widget background = Container(
       height: 140,

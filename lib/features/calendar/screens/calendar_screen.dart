@@ -6,6 +6,7 @@ import '../../tasks/providers/task_provider.dart';
 import '../../tasks/models/task.dart';
 import '../../categories/providers/category_provider.dart';
 import '../../../widgets/task_banner_card.dart';
+import '../../tasks/widgets/task_detail_sheet.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -139,7 +140,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       final task = selectedTasks[index];
                       return TaskBannerCard(
                         task: task,
-                        onTap: () {},
+                        onTap: () => showTaskDetailSheet(context, ref, task),
                         onToggle: () => ref.read(taskListProvider.notifier).toggleTask(task.uuid),
                         onDelete: () => ref.read(taskListProvider.notifier).deleteTask(task.uuid),
                         categoryLabel: resolveCategoryLabel(categories, task),

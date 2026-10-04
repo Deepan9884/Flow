@@ -5,6 +5,7 @@ import '../../categories/providers/category_provider.dart';
 import '../../categories/models/category.dart';
 import '../models/task.dart';
 import '../../../widgets/task_banner_card.dart';
+import '../widgets/task_detail_sheet.dart';
 
 enum KanbanColumn { todo, important, done }
 
@@ -144,7 +145,7 @@ class KanbanScreen extends ConsumerWidget {
                       ),
                       child: TaskBannerCard(
                         task: task,
-                        onTap: () {},
+                        onTap: () => showTaskDetailSheet(context, ref, task),
                         onToggle: () => ref.read(taskListProvider.notifier).toggleTask(task.uuid),
                         onDelete: () => ref.read(taskListProvider.notifier).deleteTask(task.uuid),
                         categoryLabel: resolveCategoryLabel(categories, task),

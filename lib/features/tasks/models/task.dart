@@ -26,7 +26,8 @@ class Task with _$Task {
     required DateTime updatedAt,
     @ignore Map<String, dynamic>? customFields, // ignore: invalid_annotation_target
     String? wallpaperPath, // local file path to imported banner background image
-    String? soundPath,     // local file path to imported custom audio file
+    @Default(0.0) double wallpaperOffsetY, // vertical crop alignment -1.0 (top) .. 1.0 (bottom)
+    String? soundPath, // local file path to imported custom audio file
   }) = _Task;
 
   // Hash code mapping for unique integer identification in Isar collections

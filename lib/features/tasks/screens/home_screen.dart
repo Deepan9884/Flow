@@ -95,7 +95,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     // Elegant Search Bar
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: const [
                           BoxShadow(
@@ -330,7 +330,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       }
 
                       return Card(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.surface,
                         elevation: 0,
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         shape: RoundedRectangleBorder(

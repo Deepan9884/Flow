@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:isar/isar.dart';
 import 'theme_config.dart';
@@ -16,25 +17,37 @@ class ThemeNotifier extends StateNotifier<ThemeConfig> {
   final Isar _isar = AppDatabase.instance;
 
   Future<void> _loadTheme() async {
-    final theme = await _isar.themeConfigs.where().findFirst();
-    if (theme != null) {
-      state = theme;
+    try {
+      final theme = await _isar.themeConfigs.where().findFirst();
+      if (theme != null) {
+        state = theme;
+      }
+    } catch (e) {
+      debugPrint('Flow ThemeNotifier load failed: $e');
     }
   }
 
   Future<void> toggleDarkMode(bool isDark) async {
     final newTheme = state.copyWith(isDark: isDark);
-    await _isar.writeTxn(() async {
-      await _isar.themeConfigs.put(newTheme);
-    });
+    try {
+      await _isar.writeTxn(() async {
+        await _isar.themeConfigs.put(newTheme);
+      });
+    } catch (e) {
+      debugPrint('Flow ThemeNotifier write failed: $e');
+    }
     state = newTheme;
   }
 
   Future<void> toggleNotifications(bool enabled) async {
     final newTheme = state.copyWith(notificationsEnabled: enabled);
-    await _isar.writeTxn(() async {
-      await _isar.themeConfigs.put(newTheme);
-    });
+    try {
+      await _isar.writeTxn(() async {
+        await _isar.themeConfigs.put(newTheme);
+      });
+    } catch (e) {
+      debugPrint('Flow ThemeNotifier write failed: $e');
+    }
     state = newTheme;
     if (!enabled) {
       // Turning notifications off cancels everything already scheduled.

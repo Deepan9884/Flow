@@ -16,6 +16,7 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref) {
     RecurrenceFrequency selectedFrequency = RecurrenceFrequency.none;
     String? selectedCategoryId;
     String? pickedWallpaperPath;
+    double pickedWallpaperOffsetY = 0.0;
     String? pickedSoundPath;
 
     final categories = ref.read(categoryListProvider);
@@ -28,9 +29,9 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
                 ),
@@ -270,6 +271,28 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref) {
                       },
                       label: 'Custom Banner Wallpaper',
                     ),
+                    if (pickedWallpaperPath != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.vertical_align_center_rounded, size: 16, color: Colors.grey),
+                          Expanded(
+                            child: Slider(
+                              value: pickedWallpaperOffsetY,
+                              min: -1.0,
+                              max: 1.0,
+                              divisions: 20,
+                              label: 'Crop position',
+                              onChanged: (v) {
+                                setSheetState(() {
+                                  pickedWallpaperOffsetY = v;
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 10),
 
                     // Custom Alarm Audio Import widget
@@ -341,6 +364,7 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref) {
                                   priority: selectedPriority,
                                   categoryIds: selectedCategoryId != null ? [selectedCategoryId!] : const [],
                                   wallpaperPath: pickedWallpaperPath,
+                                  wallpaperOffsetY: pickedWallpaperOffsetY,
                                   soundPath: pickedSoundPath,
                                   recurrence: selectedFrequency == RecurrenceFrequency.none
                                       ? null
