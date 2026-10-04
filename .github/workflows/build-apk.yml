@@ -93,8 +93,17 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
+      - name: Build App Bundle
+        run: flutter build appbundle --release
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: flow-task-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload App Bundle Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-task-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
