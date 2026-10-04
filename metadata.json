@@ -1,6 +1,0 @@
-{
-  "name": "Flow To-Do List App",
-  "description": "A high-fidelity minimalist task management dashboard featuring responsive perspective transforms, secure Google Drive cloud backup, and interactive sprint backlogs.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
