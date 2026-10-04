@@ -17,8 +17,8 @@ void main() async {
   // Never white-screen: render a branded fallback when a widget throws.
   ErrorWidget.builder = (details) {
     // No BuildContext here; fall back to platform brightness for theming.
-    final Brightness platformBrightness = WidgetsBinding
-        .instance.platformDispatcher.views.first.platformBrightness;
+    final Brightness platformBrightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
     final bool isDark = platformBrightness == Brightness.dark;
     return Material(
       child: Container(
