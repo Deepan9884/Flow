@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../../tasks/providers/task_provider.dart';
 import '../../tasks/models/task.dart';
+import '../../categories/providers/category_provider.dart';
 import '../../../widgets/task_banner_card.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
@@ -35,6 +36,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final tasks = ref.watch(taskListProvider);
+    final categories = ref.watch(categoryListProvider);
     final selectedTasks = _getTasksForDay(_selectedDay ?? _focusedDay, tasks);
 
     return Scaffold(
@@ -140,6 +142,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         onTap: () {},
                         onToggle: () => ref.read(taskListProvider.notifier).toggleTask(task.uuid),
                         onDelete: () => ref.read(taskListProvider.notifier).deleteTask(task.uuid),
+                        categoryLabel: resolveCategoryLabel(categories, task),
                       );
                     },
                   ),

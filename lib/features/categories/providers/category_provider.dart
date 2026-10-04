@@ -1,5 +1,6 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:isar/isar.dart';
+import 'package:uuid/uuid.dart';
 import '../models/category.dart';
 import '../../../core/db/app_database.dart';
 
@@ -43,7 +44,7 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
     String? iconName,
   }) async {
     final category = Category(
-      uuid: DateTime.now().microsecondsSinceEpoch.toString(),
+      uuid: const Uuid().v4(),
       name: name,
       colorValue: colorValue,
       iconName: iconName ?? 'label_rounded',

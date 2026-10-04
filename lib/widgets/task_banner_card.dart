@@ -3,13 +3,26 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../features/tasks/models/task.dart';
+import '../features/categories/models/category.dart';
 import 'tilt_banner.dart';
+
+/// Resolves a human-readable category label for a task's first category id.
+/// Falls back to the raw id when the category no longer exists.
+String? resolveCategoryLabel(List<Category> categories, Task task) {
+  if (task.categoryIds.isEmpty) return null;
+  final id = task.categoryIds.first;
+  for (final c in categories) {
+    if (c.uuid == id) return c.name;
+  }
+  return id;
+}
 
 class TaskBannerCard extends StatefulWidget {
   final Task task;
   final VoidCallback? onTap;
   final VoidCallback? onToggle;
   final VoidCallback? onDelete;
+  final String? categoryLabel;
 
   const TaskBannerCard({
     super.key,
@@ -17,6 +30,7 @@ class TaskBannerCard extends StatefulWidget {
     this.onTap,
     this.onToggle,
     this.onDelete,
+    this.categoryLabel,
   });
 
   @override
@@ -259,7 +273,7 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
                     border: Border.all(color: Colors.white24, width: 0.5),
                   ),
                   child: Text(
-                    widget.task.categoryIds.first.toUpperCase(),
+                    (widget.categoryLabel ?? widget.task.categoryIds.first).toUpperCase(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 9,

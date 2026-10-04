@@ -15,10 +15,10 @@ class Task with _$Task {
     required String uuid,
     required String title,
     String? notes,
-    DateTime? dueDate,
+    @Index() DateTime? dueDate,
     DateTime? reminderAt,
     @Default(0) int priority, // 0 = Low, 1 = Medium, 2 = High, 3 = Critical
-    @Default(false) bool isCompleted,
+    @Index() @Default(false) bool isCompleted,
     required List<String> categoryIds,
     required List<Subtask> subtasks,
     RecurrenceRule? recurrence,

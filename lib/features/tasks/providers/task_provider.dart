@@ -1,7 +1,9 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:isar/isar.dart';
+import 'package:uuid/uuid.dart';
 import '../models/task.dart';
 import '../models/subtask.dart';
+import '../models/recurrence_rule.dart';
 import '../../../core/db/app_database.dart';
 import '../../../services/notification_service.dart';
 
@@ -49,9 +51,11 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     List<String> categoryIds = const [],
     String? wallpaperPath,
     String? soundPath,
+    RecurrenceRule? recurrence,
   }) async {
+    final now = DateTime.now();
     final task = Task(
-      uuid: DateTime.now().microsecondsSinceEpoch.toString(),
+      uuid: const Uuid().v4(),
       title: title,
       notes: notes,
       dueDate: dueDate,
@@ -59,8 +63,9 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       priority: priority,
       categoryIds: categoryIds,
       subtasks: const [],
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      recurrence: recurrence,
+      createdAt: now,
+      updatedAt: now,
       wallpaperPath: wallpaperPath,
       soundPath: soundPath,
     );
@@ -99,6 +104,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     // A completed task must not keep firing its old reminder.
     if (updatedTask.isCompleted) {
       await NotificationService.cancelTaskReminder(taskId);
+      // Recurring tasks spawn their next occurrence on completion.
+      await _spawnNextOccurrence(updatedTask);
     }
 
     await _loadTasks();
@@ -120,7 +127,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     final task = state[taskIndex];
     final subtasks = List<Subtask>.from(task.subtasks);
     subtasks.add(Subtask(
-      uuid: DateTime.now().microsecondsSinceEpoch.toString(),
+      uuid: const Uuid().v4(),
       title: subtaskTitle,
       isDone: false,
     ));
@@ -175,7 +182,78 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     });
     if (isCompleted) {
       await NotificationService.cancelTaskReminder(taskId);
+      await _spawnNextOccurrence(updatedTask);
     }
+    await _loadTasks();
+  }
+
+  /// Spawns the next occurrence of a recurring task after completion.
+  /// Daily/weekly/monthly rules advance dueDate/reminderAt by [interval].
+  Future<void> _spawnNextOccurrence(Task completed) async {
+    final rule = completed.recurrence;
+    if (rule == null || rule.frequency == RecurrenceFrequency.none) return;
+
+    DateTime shift(DateTime d) {
+      switch (rule.frequency) {
+        case RecurrenceFrequency.daily:
+          return d.add(Duration(days: rule.interval));
+        case RecurrenceFrequency.weekly:
+          return d.add(Duration(days: 7 * rule.interval));
+        case RecurrenceFrequency.monthly:
+          return DateTime(d.year, d.month + rule.interval, d.day, d.hour, d.minute);
+        case RecurrenceFrequency.none:
+          return d;
+      }
+    }
+
+    final now = DateTime.now();
+    final next = completed.copyWith(
+      uuid: const Uuid().v4(),
+      isCompleted: false,
+      dueDate: completed.dueDate == null ? null : shift(completed.dueDate!),
+      reminderAt: completed.reminderAt == null ? null : shift(completed.reminderAt!),
+      subtasks: completed.subtasks.map((s) => s.copyWith(isDone: false)).toList(),
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await _isar.writeTxn(() async {
+      await _isar.tasks.put(next);
+    });
+
+    if (next.reminderAt != null) {
+      try {
+        await NotificationService.scheduleTaskReminder(next);
+      } catch (_) {
+        // Next occurrence is persisted; scheduling is best-effort.
+      }
+    }
+  }
+
+  /// Updates (or clears, when null) a task's reminder, rescheduling accordingly.
+  Future<void> updateTaskReminder(String taskId, DateTime? reminderAt) async {
+    final taskIndex = state.indexWhere((t) => t.uuid == taskId);
+    if (taskIndex == -1) return;
+
+    final task = state[taskIndex];
+    final updatedTask = task.copyWith(
+      reminderAt: reminderAt,
+      updatedAt: DateTime.now(),
+    );
+
+    await _isar.writeTxn(() async {
+      await _isar.tasks.put(updatedTask);
+    });
+
+    await NotificationService.cancelTaskReminder(taskId);
+    if (reminderAt != null && !updatedTask.isCompleted) {
+      try {
+        await NotificationService.scheduleTaskReminder(updatedTask);
+      } catch (_) {
+        // Reminder persisted; scheduling is best-effort.
+      }
+    }
+
     await _loadTasks();
   }
 

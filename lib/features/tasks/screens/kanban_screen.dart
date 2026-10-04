@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../providers/task_provider.dart';
+import '../../categories/providers/category_provider.dart';
+import '../../categories/models/category.dart';
 import '../models/task.dart';
 import '../../../widgets/task_banner_card.dart';
 
@@ -12,6 +14,7 @@ class KanbanScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasks = ref.watch(taskListProvider);
+    final categories = ref.watch(categoryListProvider);
 
     final todoTasks = tasks.where((t) => !t.isCompleted && t.priority == 0).toList();
     final importantTasks = tasks.where((t) => !t.isCompleted && t.priority > 0).toList();
@@ -36,18 +39,18 @@ class KanbanScreen extends ConsumerWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildDragTargetColumn(context, ref, 'To Do', KanbanColumn.todo, todoTasks),
+            _buildDragTargetColumn(context, ref, categories, 'To Do', KanbanColumn.todo, todoTasks),
             const SizedBox(width: 16),
-            _buildDragTargetColumn(context, ref, 'Important', KanbanColumn.important, importantTasks),
+            _buildDragTargetColumn(context, ref, categories, 'Important', KanbanColumn.important, importantTasks),
             const SizedBox(width: 16),
-            _buildDragTargetColumn(context, ref, 'Done', KanbanColumn.done, doneTasks),
+            _buildDragTargetColumn(context, ref, categories, 'Done', KanbanColumn.done, doneTasks),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDragTargetColumn(BuildContext context, WidgetRef ref, String title, KanbanColumn columnType, List<Task> tasks) {
+  Widget _buildDragTargetColumn(BuildContext context, WidgetRef ref, List<Category> categories, String title, KanbanColumn columnType, List<Task> tasks) {
     return DragTarget<Task>(
       onAcceptWithDetails: (details) {
         final task = details.data;
@@ -126,6 +129,7 @@ class KanbanScreen extends ConsumerWidget {
                             child: TaskBannerCard(
                               task: task,
                               onTap: () {},
+                              categoryLabel: resolveCategoryLabel(categories, task),
                             ),
                           ),
                         ),
@@ -135,6 +139,7 @@ class KanbanScreen extends ConsumerWidget {
                         child: TaskBannerCard(
                           task: task,
                           onTap: () {},
+                          categoryLabel: resolveCategoryLabel(categories, task),
                         ),
                       ),
                       child: TaskBannerCard(
@@ -142,6 +147,7 @@ class KanbanScreen extends ConsumerWidget {
                         onTap: () {},
                         onToggle: () => ref.read(taskListProvider.notifier).toggleTask(task.uuid),
                         onDelete: () => ref.read(taskListProvider.notifier).deleteTask(task.uuid),
+                        categoryLabel: resolveCategoryLabel(categories, task),
                       ),
                     );
                   },

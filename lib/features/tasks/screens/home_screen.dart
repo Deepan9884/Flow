@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../models/task.dart';
+import '../models/recurrence_rule.dart';
 import '../../categories/models/category.dart';
 import '../providers/task_provider.dart';
 import '../../categories/providers/category_provider.dart';
@@ -172,6 +173,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             child: TaskBannerCard(
                               task: task,
                               onTap: () => _showTaskDetailSheet(context, task),
+                              categoryLabel: resolveCategoryLabel(categories, task),
                             ),
                           );
                         },
@@ -498,6 +500,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  String _recurrenceLabel(RecurrenceFrequency frequency) {
+    switch (frequency) {
+      case RecurrenceFrequency.daily:
+        return 'Daily';
+      case RecurrenceFrequency.weekly:
+        return 'Weekly';
+      case RecurrenceFrequency.monthly:
+        return 'Monthly';
+      case RecurrenceFrequency.none:
+        return 'Does not repeat';
+    }
+  }
+
   // --- Dialog & Sheets ---
   void _showAddCategoryDialog(BuildContext context) {
     final nameController = TextEditingController();
@@ -521,11 +536,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           builder: (context, setState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text('Add Custom Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              title: const Text('Manage Categories', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final existing = ref.watch(categoryListProvider);
+                      if (existing.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Text('No categories yet.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        );
+                      }
+                      return Container(
+                        constraints: const BoxConstraints(maxHeight: 160),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: existing.map((c) {
+                              return Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: Color(c.colorValue),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(c.name, style: const TextStyle(fontSize: 13)),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                                    tooltip: 'Delete ${c.name}',
+                                    onPressed: () {
+                                      ref.read(categoryListProvider.notifier).deleteCategory(c.uuid);
+                                    },
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   TextField(
                     controller: nameController,
                     style: const TextStyle(fontSize: 14),
@@ -606,6 +666,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     DateTime? selectedDueDate;
     DateTime? selectedReminderTime;
     int selectedPriority = 0; // Low
+    RecurrenceFrequency selectedFrequency = RecurrenceFrequency.none;
     String? selectedCategoryId;
     String? pickedWallpaperPath;
     String? pickedSoundPath;
@@ -827,6 +888,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(height: 18),
 
+                    // Recurrence selector
+                    const Text('Repeat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<RecurrenceFrequency>(
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      value: selectedFrequency,
+                      items: RecurrenceFrequency.values.map((f) {
+                        return DropdownMenuItem<RecurrenceFrequency>(
+                          value: f,
+                          child: Text(_recurrenceLabel(f), style: const TextStyle(fontSize: 13)),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setSheetState(() => selectedFrequency = val);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 18),
+
                     // Custom Wallpaper Import widget
                     WallpaperPickerTile(
                       currentWallpaperPath: pickedWallpaperPath,
@@ -909,6 +993,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   categoryIds: selectedCategoryId != null ? [selectedCategoryId!] : const [],
                                   wallpaperPath: pickedWallpaperPath,
                                   soundPath: pickedSoundPath,
+                                  recurrence: selectedFrequency == RecurrenceFrequency.none
+                                      ? null
+                                      : RecurrenceRule(frequency: selectedFrequency),
                                 );
                             Navigator.pop(context);
                           }
@@ -946,6 +1033,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             final currentTaskIndex = currentTasks.indexWhere((t) => t.uuid == task.uuid);
             if (currentTaskIndex == -1) return const SizedBox.shrink();
             final liveTask = currentTasks[currentTaskIndex];
+            final categories = ref.watch(categoryListProvider);
 
             final hasWallpaper = liveTask.wallpaperPath != null && liveTask.wallpaperPath!.isNotEmpty;
             final File? wallpaperFile = hasWallpaper ? File(liveTask.wallpaperPath!) : null;
@@ -985,6 +1073,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: TaskBannerCard(
                         task: liveTask,
                         onTap: () {},
+                        categoryLabel: resolveCategoryLabel(categories, liveTask),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -1105,14 +1194,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(height: 8),
                     ],
-                    if (liveTask.reminderAt != null) ...[
+                    if (liveTask.recurrence != null &&
+                        liveTask.recurrence!.frequency != RecurrenceFrequency.none) ...[
                       Row(
                         children: [
-                          const Icon(Icons.alarm_on_rounded, size: 16, color: Colors.orange),
+                          const Icon(Icons.repeat_rounded, size: 16, color: Color(0xFF0058BE)),
                           const SizedBox(width: 8),
-                          Text('Reminder Scheduled: ', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          Text(_formatDate(liveTask.reminderAt!), style: const TextStyle(fontSize: 12)),
+                          const Text('Repeats: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          Text(_recurrenceLabel(liveTask.recurrence!.frequency),
+                              style: const TextStyle(fontSize: 12)),
                         ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    if (liveTask.reminderAt != null) ...[
+                      InkWell(
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: liveTask.reminderAt!,
+                            firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (date != null) {
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(liveTask.reminderAt!),
+                            );
+                            if (time != null) {
+                              await ref.read(taskListProvider.notifier).updateTaskReminder(
+                                    liveTask.uuid,
+                                    DateTime(date.year, date.month, date.day, time.hour, time.minute),
+                                  );
+                              setDetailState(() {});
+                            }
+                          }
+                        },
+                        child: Row(
+                          children: [
+                            const Icon(Icons.alarm_on_rounded, size: 16, color: Colors.orange),
+                            const SizedBox(width: 8),
+                            const Text('Reminder Scheduled: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            Expanded(
+                              child: Text(_formatDate(liveTask.reminderAt!), style: const TextStyle(fontSize: 12)),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 16),
+                              tooltip: 'Clear reminder',
+                              onPressed: () async {
+                                await ref.read(taskListProvider.notifier).updateTaskReminder(liveTask.uuid, null);
+                                setDetailState(() {});
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ] else ...[
+                      InkWell(
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                          );
+                          if (date != null) {
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.now(),
+                            );
+                            if (time != null) {
+                              await ref.read(taskListProvider.notifier).updateTaskReminder(
+                                    liveTask.uuid,
+                                    DateTime(date.year, date.month, date.day, time.hour, time.minute),
+                                  );
+                              setDetailState(() {});
+                            }
+                          }
+                        },
+                        child: const Row(
+                          children: [
+                            Icon(Icons.alarm_add_rounded, size: 16, color: Colors.grey),
+                            SizedBox(width: 8),
+                            Text('Add Reminder', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                     ],
