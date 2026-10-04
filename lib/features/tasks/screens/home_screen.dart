@@ -1,16 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
 import '../models/task.dart';
-import '../models/subtask.dart';
 import '../../categories/models/category.dart';
 import '../providers/task_provider.dart';
 import '../../categories/providers/category_provider.dart';
 import '../../../widgets/task_banner_card.dart';
 import '../../../widgets/wallpaper_picker_tile.dart';
 import '../../../services/media_import_service.dart';
-import '../../../services/notification_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -48,7 +45,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final priorityTasks = tasks.where((t) => !t.isCompleted && t.priority >= 2).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
@@ -72,7 +68,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 fontFamily: 'Inter',
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: const Color(0xFF191C1D),
+                                color: Theme.of(context).colorScheme.onSurface,
                                 letterSpacing: -0.5,
                               ),
                             ),
@@ -82,7 +78,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 13,
-                                color: const Color(0xFF191C1D).withOpacity(0.5),
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                               ),
                             ),
                           ],
@@ -367,7 +363,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             style: TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w600,
-                              color: task.isCompleted ? Colors.grey : const Color(0xFF191C1D),
+                              color: task.isCompleted
+                                  ? Colors.grey
+                                  : Theme.of(context).colorScheme.onSurface,
                               decoration: task.isCompleted ? TextDecoration.lineThrough : null,
                             ),
                           ),

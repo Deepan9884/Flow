@@ -18,14 +18,13 @@ class KanbanScreen extends ConsumerWidget {
     final doneTasks = tasks.where((t) => t.isCompleted).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Kanban Board',
           style: TextStyle(
             fontFamily: 'Inter',
             fontWeight: FontWeight.bold,
-            color: Color(0xFF191C1D),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         backgroundColor: Colors.transparent,
@@ -84,26 +83,26 @@ class KanbanScreen extends ConsumerWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF191C1D),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       '${tasks.length}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF191C1D),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -126,8 +125,7 @@ class KanbanScreen extends ConsumerWidget {
                             width: 248,
                             child: TaskBannerCard(
                               task: task,
-                              onToggle: () {},
-                              onDelete: () {},
+                              onTap: () {},
                             ),
                           ),
                         ),
@@ -136,12 +134,12 @@ class KanbanScreen extends ConsumerWidget {
                         opacity: 0.3,
                         child: TaskBannerCard(
                           task: task,
-                          onToggle: () {},
-                          onDelete: () {},
+                          onTap: () {},
                         ),
                       ),
                       child: TaskBannerCard(
                         task: task,
+                        onTap: () {},
                         onToggle: () => ref.read(taskListProvider.notifier).toggleTask(task.uuid),
                         onDelete: () => ref.read(taskListProvider.notifier).deleteTask(task.uuid),
                       ),

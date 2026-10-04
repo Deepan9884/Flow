@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <external-path name="external_files" path="."/>
+    <external-files-path name="external_app_files" path="."/>
     <files-path name="app_files" path="."/>
+    <files-path name="app_sounds" path="sounds/"/>
+    <files-path name="app_wallpapers" path="wallpapers/"/>
     <cache-path name="app_cache" path="."/>
+    <cache-path name="cache_sounds" path="sounds/"/>
 </paths>

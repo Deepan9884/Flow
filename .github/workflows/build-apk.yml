@@ -34,9 +34,11 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
+      - name: Analyze
+        run: flutter analyze
+
       - name: Run Build Runner
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-        continue-on-error: true # Just in case Isar or Riverpod code generation is pre-run or optional
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build APK
         run: flutter build apk --release

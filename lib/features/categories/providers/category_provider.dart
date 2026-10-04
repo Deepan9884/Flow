@@ -53,7 +53,7 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
       await _isar.categorys.put(category);
     });
 
-    _loadCategories();
+    await _loadCategories();
   }
 
   Future<void> deleteCategory(String categoryId) async {
@@ -61,6 +61,6 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
     await _isar.writeTxn(() async {
       await _isar.categorys.delete(hashId);
     });
-    _loadCategories();
+    await _loadCategories();
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -6,12 +7,16 @@ import 'tilt_banner.dart';
 
 class TaskBannerCard extends StatefulWidget {
   final Task task;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final VoidCallback? onToggle;
+  final VoidCallback? onDelete;
 
   const TaskBannerCard({
     super.key,
     required this.task,
-    required this.onTap,
+    this.onTap,
+    this.onToggle,
+    this.onDelete,
   });
 
   @override
@@ -20,13 +25,16 @@ class TaskBannerCard extends StatefulWidget {
 
 class _TaskBannerCardState extends State<TaskBannerCard> {
   static AudioPlayer? _sharedPlayer;
+  static StreamSubscription<PlayerState>? _playerSub;
   bool _isPlaying = false;
 
   @override
   void dispose() {
-    // If this specific card is playing when disposed, stop it
+    // If this specific card is playing when disposed, stop it.
+    // No setState here: the state object is being torn down.
     if (_isPlaying && _sharedPlayer != null) {
       _sharedPlayer!.stop();
+      _isPlaying = false;
     }
     super.dispose();
   }
@@ -53,7 +61,8 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
         _isPlaying = true;
       });
 
-      _sharedPlayer!.playerStateStream.listen((state) {
+      await _playerSub?.cancel();
+      _playerSub = _sharedPlayer!.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed) {
           if (mounted) {
             setState(() {
@@ -181,6 +190,42 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
                     ),
                     child: Icon(
                       _isPlaying ? Icons.volume_up : Icons.volume_mute,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              if (widget.onToggle != null)
+                GestureDetector(
+                  onTap: widget.onToggle,
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 6),
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      widget.task.isCompleted
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              if (widget.onDelete != null)
+                GestureDetector(
+                  onTap: widget.onDelete,
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 6),
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline,
                       color: Colors.white,
                       size: 16,
                     ),

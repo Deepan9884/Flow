@@ -38,14 +38,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final selectedTasks = _getTasksForDay(_selectedDay ?? _focusedDay, tasks);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Calendar',
           style: TextStyle(
             fontFamily: 'Inter',
             fontWeight: FontWeight.bold,
-            color: Color(0xFF191C1D),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         backgroundColor: Colors.transparent,
@@ -56,7 +55,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
               boxShadow: const [
                 BoxShadow(
@@ -112,11 +111,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               alignment: Alignment.centerLeft,
               child: Text(
                 'Tasks for ${DateFormat('MMM d, yyyy').format(_selectedDay ?? _focusedDay)}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF191C1D),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -138,6 +137,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       final task = selectedTasks[index];
                       return TaskBannerCard(
                         task: task,
+                        onTap: () {},
                         onToggle: () => ref.read(taskListProvider.notifier).toggleTask(task.uuid),
                         onDelete: () => ref.read(taskListProvider.notifier).deleteTask(task.uuid),
                       );

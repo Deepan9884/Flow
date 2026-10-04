@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -67,9 +66,12 @@ class NotificationService {
       final String channelId = 'task_channel_${task.uuid}_${task.soundPath.hashCode}';
       final String channelName = 'Task Reminder: ${task.title}';
 
-      // Use a FileProvider URI on Android pointing to the stored sound file
+      // Use a FileProvider URI on Android pointing to the stored sound file.
+      // The file is saved as <timestamp>.<ext> by MediaImportService, so
+      // reference the actual basename rather than the task uuid.
+      final String soundFileName = task.soundPath!.split('/').last.split('\\').last;
       final UriAndroidNotificationSound customSound =
-          UriAndroidNotificationSound('content://flow_todo_fileprovider/sounds/${task.uuid}');
+          UriAndroidNotificationSound('content://flow_todo_fileprovider/sounds/$soundFileName');
 
       androidDetails = AndroidNotificationDetails(
         channelId,
@@ -105,15 +107,59 @@ class NotificationService {
     );
 
     // 4. Exact zoned scheduling trigger
-    await _notificationsPlugin.zonedSchedule(
-      notificationId,
-      'Task Reminder',
-      task.title,
-      tz.TZDateTime.from(scheduleTime, tz.local),
-      notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-    );
+    try {
+      await _notificationsPlugin.zonedSchedule(
+        notificationId,
+        'Task Reminder',
+        task.title,
+        tz.TZDateTime.from(scheduleTime, tz.local),
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (_) {
+      // Custom sound URIs can fail to resolve (e.g. FileProvider scope).
+      // Fall back to the default channel so the reminder still fires.
+      const fallbackDetails = NotificationDetails(
+        android: AndroidNotificationDetails(
+          'default_reminders_channel',
+          'Standard Reminders',
+          channelDescription: 'Standard todo alerts with default sound',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: iosDetails,
+      );
+      await _notificationsPlugin.zonedSchedule(
+        notificationId,
+        'Task Reminder',
+        task.title,
+        tz.TZDateTime.from(scheduleTime, tz.local),
+        fallbackDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    }
+  }
+
+  /// Cancels the scheduled reminder for a single task, if any.
+  static Future<void> cancelTaskReminder(String taskUuid) async {
+    try {
+      await _notificationsPlugin.cancel(taskUuid.hashCode);
+    } catch (_) {
+      // Cancellation is best-effort; a missing id is not an error.
+    }
+  }
+
+  /// Cancels every scheduled reminder (used on sign-out / data reset).
+  static Future<void> cancelAllReminders() async {
+    try {
+      await _notificationsPlugin.cancelAll();
+    } catch (_) {
+      // Best-effort.
+    }
   }
 
   /// Plays custom sound file directly using just_audio for full-fidelity active foreground playback

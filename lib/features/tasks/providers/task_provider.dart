@@ -2,7 +2,6 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:isar/isar.dart';
 import '../models/task.dart';
 import '../models/subtask.dart';
-import '../../categories/models/category.dart';
 import '../../../core/db/app_database.dart';
 import '../../../services/notification_service.dart';
 
@@ -31,9 +30,11 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       if (a.priority != b.priority) {
         return b.priority.compareTo(a.priority);
       }
-      if (a.dueDate != null && b.dueDate != null) {
-        return a.dueDate!.compareTo(b.dueDate!);
-      }
+      // Total order: undated tasks sort after dated ones, then by creation.
+      final DateTime aDue = a.dueDate ?? DateTime(9999, 12, 31);
+      final DateTime bDue = b.dueDate ?? DateTime(9999, 12, 31);
+      final int dueCmp = aDue.compareTo(bDue);
+      if (dueCmp != 0) return dueCmp;
       return a.createdAt.compareTo(b.createdAt);
     });
     state = List.from(tasks);
@@ -68,11 +69,17 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       await _isar.tasks.put(task);
     });
 
-    if (reminderAt != null) {
-      await NotificationService.scheduleTaskReminder(task);
-    }
+    // Refresh the list first so the new task always appears, even if
+    // notification scheduling fails on the device.
+    await _loadTasks();
 
-    _loadTasks();
+    if (reminderAt != null) {
+      try {
+        await NotificationService.scheduleTaskReminder(task);
+      } catch (_) {
+        // Scheduling is best-effort; the task itself is already persisted.
+      }
+    }
   }
 
   Future<void> toggleTask(String taskId) async {
@@ -89,7 +96,12 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       await _isar.tasks.put(updatedTask);
     });
 
-    _loadTasks();
+    // A completed task must not keep firing its old reminder.
+    if (updatedTask.isCompleted) {
+      await NotificationService.cancelTaskReminder(taskId);
+    }
+
+    await _loadTasks();
   }
 
   Future<void> deleteTask(String taskId) async {
@@ -97,7 +109,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     await _isar.writeTxn(() async {
       await _isar.tasks.delete(hashId);
     });
-    _loadTasks();
+    await NotificationService.cancelTaskReminder(taskId);
+    await _loadTasks();
   }
 
   Future<void> addSubtask(String taskId, String subtaskTitle) async {
@@ -121,7 +134,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       await _isar.tasks.put(updatedTask);
     });
 
-    _loadTasks();
+    await _loadTasks();
   }
 
   Future<void> toggleSubtask(String taskId, String subtaskId) async {
@@ -145,7 +158,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       await _isar.tasks.put(updatedTask);
     });
 
-    _loadTasks();
+    await _loadTasks();
   }
 
   Future<void> updateTaskStatusAndPriority(String taskId, bool isCompleted, int priority) async {
@@ -160,7 +173,10 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     await _isar.writeTxn(() async {
       await _isar.tasks.put(updatedTask);
     });
-    _loadTasks();
+    if (isCompleted) {
+      await NotificationService.cancelTaskReminder(taskId);
+    }
+    await _loadTasks();
   }
 
   Future<void> updateTaskWallpaper(String taskId, String path) async {
@@ -177,7 +193,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       await _isar.tasks.put(updatedTask);
     });
 
-    _loadTasks();
+    await _loadTasks();
   }
 
   Future<void> updateTaskSound(String taskId, String path) async {
@@ -194,6 +210,6 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       await _isar.tasks.put(updatedTask);
     });
 
-    _loadTasks();
+    await _loadTasks();
   }
 }

@@ -28,7 +28,6 @@ class _TiltBannerState extends State<TiltBanner> with SingleTickerProviderStateM
   
   double _tiltX = 0.0;
   double _tiltY = 0.0;
-  double _accumulatedDrag = 0.0;
   Offset? _lastPanPosition;
 
   late AnimationController _animController;
@@ -58,14 +57,10 @@ class _TiltBannerState extends State<TiltBanner> with SingleTickerProviderStateM
 
   void _handlePanStart(DragStartDetails details) {
     _animController.stop();
-    _accumulatedDrag = 0.0;
     _lastPanPosition = details.globalPosition;
   }
 
   void _handlePanUpdate(DragUpdateDetails details) {
-    if (_lastPanPosition != null) {
-      _accumulatedDrag += (details.globalPosition - _lastPanPosition!).distance;
-    }
     _lastPanPosition = details.globalPosition;
 
     final RenderBox? renderBox = _widgetKey.currentContext?.findRenderObject() as RenderBox?;
@@ -92,9 +87,6 @@ class _TiltBannerState extends State<TiltBanner> with SingleTickerProviderStateM
 
   void _handlePanEnd(DragEndDetails details) {
     _lastPanPosition = null;
-    if (_accumulatedDrag < 8.0 && widget.onTap != null) {
-      widget.onTap!();
-    }
 
     _animationX = Tween<double>(begin: _tiltX, end: 0.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeOut),
@@ -142,6 +134,7 @@ class _TiltBannerState extends State<TiltBanner> with SingleTickerProviderStateM
     );
 
     return GestureDetector(
+      onTap: widget.onTap,
       onPanStart: _handlePanStart,
       onPanUpdate: _handlePanUpdate,
       onPanEnd: _handlePanEnd,
