@@ -53,6 +53,10 @@ jobs:
           new_dep = "dependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.2.2'\n}"
           assert old_dep in s, 'dependencies block not found'
           s = s.replace(old_dep, new_dep)
+          old_sign = "signingConfig signingConfigs.debug"
+          new_sign = "signingConfig signingConfigs.debug\n            minifyEnabled false\n            shrinkResources false"
+          assert old_sign in s, 'signingConfig block not found'
+          s = s.replace(old_sign, new_sign)
           open(p, 'w').write(s)
           EOF
           grep -A4 'compileOptions' android/app/build.gradle
@@ -68,10 +72,14 @@ jobs:
             python3 - <<'EOF'
           p = 'android/app/build.gradle'
           s = open(p).read().replace('\r\n', '\n')
-          old_sign = "    buildTypes {\n        release {\n            // TODO: Add your own signing config for the release build.\n            // Signing with the debug keys for now, so `flutter run --release` works.\n            signingConfig signingConfigs.debug\n        }\n    }"
-          new_sign = "    signingConfigs {\n        release {\n            keyAlias keystoreProperties['keyAlias']\n            keyPassword keystoreProperties['keyPassword']\n            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null\n            storePassword keystoreProperties['storePassword']\n        }\n    }\n    buildTypes {\n        release {\n            signingConfig signingConfigs.release\n        }\n    }"
-          assert old_sign in s, 'release buildTypes block not found'
+          old_sign = "signingConfig signingConfigs.debug"
+          new_sign = "signingConfig signingConfigs.release"
+          assert old_sign in s, 'signingConfig block not found'
           s = s.replace(old_sign, new_sign)
+          old_bt = "    buildTypes {"
+          new_bt = "    signingConfigs {\n        release {\n            keyAlias keystoreProperties['keyAlias']\n            keyPassword keystoreProperties['keyPassword']\n            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null\n            storePassword keystoreProperties['storePassword']\n        }\n    }\n    buildTypes {"
+          assert old_bt in s, 'buildTypes block not found'
+          s = s.replace(old_bt, new_bt)
           old_lp = "def flutterVersionName = localProperties.getProperty('flutter.versionName')"
           assert old_lp in s, 'localProperties block not found'
           s = s.replace(old_lp, old_lp + "\n\ndef keystoreProperties = new Properties()\ndef keystorePropertiesFile = rootProject.file('key.properties')\nif (keystorePropertiesFile.exists()) {\n    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))\n}")

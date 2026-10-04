@@ -15,30 +15,34 @@ class NotificationService {
 
   /// Initializes the local notifications plugin
   static Future<void> init() async {
-    // Initialize timezone database for zoned reminders
-    tz.initializeTimeZones();
+    try {
+      // Initialize timezone database for zoned reminders
+      tz.initializeTimeZones();
 
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
+      const DarwinInitializationSettings initializationSettingsIOS =
+          DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
 
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
+      const InitializationSettings initializationSettings = InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsIOS,
+      );
 
-    await _notificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse details) {
-        // Tap handler logic
-      },
-    );
+      await _notificationsPlugin.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse details) {
+          // Tap handler logic
+        },
+      );
+    } catch (_) {
+      // Notification initialization must never prevent the app from launching.
+    }
   }
 
   /// Schedules a reminder for a specific task.

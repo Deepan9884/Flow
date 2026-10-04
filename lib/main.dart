@@ -8,11 +8,21 @@ void main() async {
   // Ensure Flutter framework hooks are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Isar database collections
-  await AppDatabase.init();
+  String? startupError;
+  try {
+    // Initialize Isar database collections
+    await AppDatabase.init();
+  } catch (e, stack) {
+    debugPrint('AppDatabase.init error: $e\n$stack');
+    startupError = e.toString();
+  }
 
-  // Initialize local notifications + timezone database before any scheduling
-  await NotificationService.init();
+  try {
+    // Initialize local notifications + timezone database before any scheduling
+    await NotificationService.init();
+  } catch (e, stack) {
+    debugPrint('NotificationService.init error: $e\n$stack');
+  }
 
   // Never white-screen: render a branded fallback when a widget throws.
   ErrorWidget.builder = (details) {
@@ -51,6 +61,39 @@ void main() async {
       ),
     );
   };
+
+  if (startupError != null) {
+    runApp(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline_rounded, size: 56, color: Color(0xFF0058BE)),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Flow Startup Error',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    startupError,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
 
   runApp(
     const ProviderScope(
