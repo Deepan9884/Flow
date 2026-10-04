@@ -34,6 +34,47 @@ jobs:
       - name: Remove template widget test
         run: rm -f test/widget_test.dart
 
+      - name: Enable desugaring for scheduled notifications
+        run: |
+          python3 - <<'EOF'
+          p = 'android/app/build.gradle'
+          s = open(p).read().replace('\r\n', '\n')
+          old_co = "    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8\n    }"
+          new_co = "    compileOptions {\n        coreLibraryDesugaringEnabled true\n        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8\n    }"
+          assert old_co in s, 'compileOptions block not found'
+          s = s.replace(old_co, new_co)
+          old_dep = "dependencies {}"
+          new_dep = "dependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'\n}"
+          assert old_dep in s, 'dependencies block not found'
+          s = s.replace(old_dep, new_dep)
+          open(p, 'w').write(s)
+          EOF
+          grep -A4 'compileOptions' android/app/build.gradle
+
+      - name: Configure release signing (if secrets present)
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/upload-keystore.jks
+            printf 'storeFile=upload-keystore.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+              "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+              "${{ secrets.ANDROID_KEY_ALIAS }}" \
+              "${{ secrets.ANDROID_KEY_PASSWORD }}" > android/key.properties
+            python3 - <<'EOF'
+          p = 'android/app/build.gradle'
+          s = open(p).read().replace('\r\n', '\n')
+          old_sign = "    buildTypes {\n        release {\n            // TODO: Add your own signing config for the release build.\n            // Signing with the debug keys for now, so `flutter run --release` works.\n            signingConfig signingConfigs.debug\n        }\n    }"
+          new_sign = "    signingConfigs {\n        release {\n            keyAlias keystoreProperties['keyAlias']\n            keyPassword keystoreProperties['keyPassword']\n            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null\n            storePassword keystoreProperties['storePassword']\n        }\n    }\n    buildTypes {\n        release {\n            signingConfig signingConfigs.release\n        }\n    }"
+          assert old_sign in s, 'release buildTypes block not found'
+          s = s.replace(old_sign, new_sign)
+          old_lp = "def flutterVersionName = localProperties.getProperty('flutter.versionName')"
+          assert old_lp in s, 'localProperties block not found'
+          s = s.replace(old_lp, old_lp + "\n\ndef keystoreProperties = new Properties()\ndef keystorePropertiesFile = rootProject.file('key.properties')\nif (keystorePropertiesFile.exists()) {\n    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))\n}")
+          open(p, 'w').write(s)
+          EOF
+          else
+            echo 'No signing secrets configured; APK will be debug-signed.'
+          fi
+
       - name: Install Dependencies
         run: flutter pub get
 

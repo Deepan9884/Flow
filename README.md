@@ -79,7 +79,19 @@ best-effort and always runs *after* the state refresh, gated by the
 | Dark mode (all screens) | Done |
 | Notifications kill-switch | Done |
 | JSON export / import | Done |
-| Release signing (`android/key.properties`) | TODO (debug-signed today) |
+| Release signing | Optional via repo secrets (else debug-signed) |
+
+## Release signing (optional)
+
+Without secrets, CI ships a debug-signed APK. For a Play-ready signature,
+add these repository secrets, and CI will sign automatically:
+
+| Secret | Content |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 upload-keystore.jks` |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore password |
+| `ANDROID_KEY_ALIAS` | key alias |
+| `ANDROID_KEY_PASSWORD` | key password |
 | Cloud sync, collaboration, widgets | Planned |
 
 ## Contributing
