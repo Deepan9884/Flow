@@ -43,6 +43,10 @@ jobs:
           new_co = "    compileOptions {\n        coreLibraryDesugaringEnabled true\n        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8\n    }"
           assert old_co in s, 'compileOptions block not found'
           s = s.replace(old_co, new_co)
+          old_min = "minSdkVersion flutter.minSdkVersion"
+          new_min = "minSdkVersion 21"
+          assert old_min in s, 'minSdkVersion block not found'
+          s = s.replace(old_min, new_min)
           old_dep = "dependencies {}"
           new_dep = "dependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.2.2'\n}"
           assert old_dep in s, 'dependencies block not found'
