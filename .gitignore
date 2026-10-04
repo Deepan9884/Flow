@@ -19,3 +19,8 @@ ios/Pods/
 *.freezed.dart
 *.g.dart
 *.isar.dart
+
+# Binaries
+*.apk
+*.aab
+
