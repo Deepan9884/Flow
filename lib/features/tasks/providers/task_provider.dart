@@ -4,6 +4,8 @@ import 'package:uuid/uuid.dart';
 import '../models/task.dart';
 import '../models/subtask.dart';
 import '../models/recurrence_rule.dart';
+import '../utils/recurrence.dart';
+import '../utils/task_order.dart';
 import '../../../core/db/app_database.dart';
 import '../../../services/notification_service.dart';
 
@@ -24,21 +26,27 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     _sortAndSetState(tasks);
   }
 
+  /// Reads the user-facing notifications kill-switch (defaults to on).
+  Future<bool> _notificationsEnabled() async {
+    final cfg = await _isar.themeConfigs.where().findFirst();
+    return cfg?.notificationsEnabled ?? true;
+  }
+
+  /// Schedules [task]'s reminder when the user has notifications enabled.
+  /// Never throws: scheduling is always best-effort.
+  Future<void> _scheduleIfEnabled(Task task) async {
+    if (task.reminderAt == null || task.isCompleted) return;
+    try {
+      if (await _notificationsEnabled()) {
+        await NotificationService.scheduleTaskReminder(task);
+      }
+    } catch (_) {
+      // Reminder persisted; scheduling is best-effort.
+    }
+  }
+
   void _sortAndSetState(List<Task> tasks) {
-    tasks.sort((a, b) {
-      if (a.isCompleted != b.isCompleted) {
-        return a.isCompleted ? 1 : -1;
-      }
-      if (a.priority != b.priority) {
-        return b.priority.compareTo(a.priority);
-      }
-      // Total order: undated tasks sort after dated ones, then by creation.
-      final DateTime aDue = a.dueDate ?? DateTime(9999, 12, 31);
-      final DateTime bDue = b.dueDate ?? DateTime(9999, 12, 31);
-      final int dueCmp = aDue.compareTo(bDue);
-      if (dueCmp != 0) return dueCmp;
-      return a.createdAt.compareTo(b.createdAt);
-    });
+    tasks.sort(compareTasks);
     state = List.from(tasks);
   }
 
@@ -77,14 +85,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     // Refresh the list first so the new task always appears, even if
     // notification scheduling fails on the device.
     await _loadTasks();
-
-    if (reminderAt != null) {
-      try {
-        await NotificationService.scheduleTaskReminder(task);
-      } catch (_) {
-        // Scheduling is best-effort; the task itself is already persisted.
-      }
-    }
+    await _scheduleIfEnabled(task);
   }
 
   Future<void> toggleTask(String taskId) async {
@@ -193,25 +194,13 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     final rule = completed.recurrence;
     if (rule == null || rule.frequency == RecurrenceFrequency.none) return;
 
-    DateTime shift(DateTime d) {
-      switch (rule.frequency) {
-        case RecurrenceFrequency.daily:
-          return d.add(Duration(days: rule.interval));
-        case RecurrenceFrequency.weekly:
-          return d.add(Duration(days: 7 * rule.interval));
-        case RecurrenceFrequency.monthly:
-          return DateTime(d.year, d.month + rule.interval, d.day, d.hour, d.minute);
-        case RecurrenceFrequency.none:
-          return d;
-      }
-    }
-
     final now = DateTime.now();
     final next = completed.copyWith(
       uuid: const Uuid().v4(),
       isCompleted: false,
-      dueDate: completed.dueDate == null ? null : shift(completed.dueDate!),
-      reminderAt: completed.reminderAt == null ? null : shift(completed.reminderAt!),
+      dueDate: completed.dueDate == null ? null : shiftRecurrence(completed.dueDate!, rule),
+      reminderAt:
+          completed.reminderAt == null ? null : shiftRecurrence(completed.reminderAt!, rule),
       subtasks: completed.subtasks.map((s) => s.copyWith(isDone: false)).toList(),
       createdAt: now,
       updatedAt: now,
@@ -221,13 +210,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       await _isar.tasks.put(next);
     });
 
-    if (next.reminderAt != null) {
-      try {
-        await NotificationService.scheduleTaskReminder(next);
-      } catch (_) {
-        // Next occurrence is persisted; scheduling is best-effort.
-      }
-    }
+    await _scheduleIfEnabled(next);
   }
 
   /// Updates (or clears, when null) a task's reminder, rescheduling accordingly.
@@ -246,13 +229,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     });
 
     await NotificationService.cancelTaskReminder(taskId);
-    if (reminderAt != null && !updatedTask.isCompleted) {
-      try {
-        await NotificationService.scheduleTaskReminder(updatedTask);
-      } catch (_) {
-        // Reminder persisted; scheduling is best-effort.
-      }
-    }
+    await _scheduleIfEnabled(updatedTask);
 
     await _loadTasks();
   }

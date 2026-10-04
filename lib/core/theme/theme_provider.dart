@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:isar/isar.dart';
 import 'theme_config.dart';
 import '../db/app_database.dart';
+import '../../services/notification_service.dart';
 
 final themeProvider = StateNotifierProvider<ThemeNotifier, ThemeConfig>((ref) {
   return ThemeNotifier();
@@ -28,5 +29,17 @@ class ThemeNotifier extends StateNotifier<ThemeConfig> {
       await _isar.themeConfigs.put(newTheme);
     });
     state = newTheme;
+  }
+
+  Future<void> toggleNotifications(bool enabled) async {
+    final newTheme = state.copyWith(notificationsEnabled: enabled);
+    await _isar.writeTxn(() async {
+      await _isar.themeConfigs.put(newTheme);
+    });
+    state = newTheme;
+    if (!enabled) {
+      // Turning notifications off cancels everything already scheduled.
+      await NotificationService.cancelAllReminders();
+    }
   }
 }

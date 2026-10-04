@@ -25,11 +25,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   List<Task> _getTasksForDay(DateTime day, List<Task> tasks) {
+    bool sameDay(DateTime d) => d.year == day.year && d.month == day.month && d.day == day.day;
     return tasks.where((t) {
-      if (t.dueDate == null) return false;
-      return t.dueDate!.year == day.year &&
-             t.dueDate!.month == day.month &&
-             t.dueDate!.day == day.day;
+      if (t.dueDate != null && sameDay(t.dueDate!)) return true;
+      if (t.reminderAt != null && sameDay(t.reminderAt!)) return true;
+      return false;
     }).toList();
   }
 

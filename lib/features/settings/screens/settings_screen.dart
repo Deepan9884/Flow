@@ -1,6 +1,10 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/theme/theme_provider.dart';
+import '../../tasks/providers/task_provider.dart';
+import '../../categories/providers/category_provider.dart';
+import '../../../services/backup_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -46,8 +50,16 @@ class SettingsScreen extends ConsumerWidget {
                 'Notifications',
                 theme.isDark,
                 trailing: Switch(
-                  value: true,
-                  onChanged: (v) {},
+                  value: theme.notificationsEnabled,
+                  onChanged: (v) {
+                    ref.read(themeProvider.notifier).toggleNotifications(v);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(v ? 'Reminders enabled' : 'All reminders cancelled'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
                   activeColor: const Color(0xFF0058BE),
                 ),
               ),
@@ -59,6 +71,69 @@ class SettingsScreen extends ConsumerWidget {
                   'English',
                   style: TextStyle(fontFamily: 'Inter', color: Colors.grey),
                 ),
+                onTap: () => _showInfoDialog(context, 'Language', 'English is currently the only supported language.'),
+              ),
+            ],
+            theme.isDark,
+          ),
+          const SizedBox(height: 24),
+          _buildSettingsSection(
+            'Data',
+            [
+              _buildSettingItem(
+                Icons.file_upload_outlined,
+                'Export Backup (JSON)',
+                theme.isDark,
+                onTap: () async {
+                  try {
+                    final path = await BackupService.exportToFile();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Backup saved to $path')),
+                      );
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Export failed. Please try again.')),
+                      );
+                    }
+                  }
+                },
+              ),
+              _buildSettingItem(
+                Icons.file_download_outlined,
+                'Import Backup (JSON)',
+                theme.isDark,
+                onTap: () async {
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ['json'],
+                  );
+                  final path = result?.files.single.path;
+                  if (path == null) return;
+                  try {
+                    final imported = await BackupService.importFromFile(path);
+                    // Refresh in-memory lists so imported rows appear immediately.
+                    ref.invalidate(taskListProvider);
+                    ref.invalidate(categoryListProvider);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Imported ${imported.tasks} tasks, ${imported.categories} categories',
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Import failed: not a valid Flow backup.')),
+                      );
+                    }
+                  }
+                },
               ),
             ],
             theme.isDark,
@@ -68,8 +143,26 @@ class SettingsScreen extends ConsumerWidget {
             'About',
             [
               _buildSettingItem(Icons.info_outline_rounded, 'Version', theme.isDark, trailing: const Text('1.0.0', style: TextStyle(fontFamily: 'Inter', color: Colors.grey))),
-              _buildSettingItem(Icons.description_outlined, 'Terms of Service', theme.isDark),
-              _buildSettingItem(Icons.privacy_tip_outlined, 'Privacy Policy', theme.isDark),
+              _buildSettingItem(
+                Icons.description_outlined,
+                'Terms of Service',
+                theme.isDark,
+                onTap: () => _showInfoDialog(
+                  context,
+                  'Terms of Service',
+                  'Flow is provided as-is for personal productivity. Your data stays on your device unless you export it.',
+                ),
+              ),
+              _buildSettingItem(
+                Icons.privacy_tip_outlined,
+                'Privacy Policy',
+                theme.isDark,
+                onTap: () => _showInfoDialog(
+                  context,
+                  'Privacy Policy',
+                  'Flow collects no analytics and sends no data anywhere. Backups you export are plain JSON files under your control.',
+                ),
+              ),
             ],
             theme.isDark,
           ),
@@ -114,7 +207,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSettingItem(IconData icon, String title, bool isDark, {Widget? trailing}) {
+  Widget _buildSettingItem(IconData icon, String title, bool isDark, {Widget? trailing, VoidCallback? onTap}) {
     return ListTile(
       leading: Icon(icon, color: isDark ? Colors.white70 : const Color(0xFF191C1D)),
       title: Text(
@@ -126,7 +219,24 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
       trailing: trailing ?? const Icon(Icons.chevron_right_rounded, color: Colors.grey),
-      onTap: trailing is Switch ? null : () {},
+      onTap: trailing is Switch ? null : onTap,
+    );
+  }
+
+  void _showInfoDialog(BuildContext context, String title, String body) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: Text(body, style: const TextStyle(fontSize: 13)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 }

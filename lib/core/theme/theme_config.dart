@@ -17,6 +17,7 @@ class ThemeConfig with _$ThemeConfig {
     required String fontFamily,
     @Default(1.0) double densityScale,
     @Default(false) bool isDark,
+    @Default(true) bool notificationsEnabled,
     String? appWallpaperPath, // global app background image, local file path
   }) = _ThemeConfig;
 
