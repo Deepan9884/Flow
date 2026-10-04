@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -60,18 +62,19 @@ class NotificationService {
     AndroidNotificationDetails androidDetails;
 
     // 2. Android Task-specific Custom Sound configuration
-    if (task.soundPath != null && task.soundPath!.isNotEmpty) {
+    final String? stagedSound = (task.soundPath != null && task.soundPath!.isNotEmpty)
+        ? await _stageSoundForDelivery(task.soundPath!)
+        : null;
+    if (stagedSound != null) {
       // Channels are immutable. If the sound changes, we generate a new channel ID.
       // We derive the channel ID from the task ID and sound path hash.
       final String channelId = 'task_channel_${task.uuid}_${task.soundPath.hashCode}';
       final String channelName = 'Task Reminder: ${task.title}';
 
-      // Use a FileProvider URI on Android pointing to the stored sound file.
-      // The file is saved as <timestamp>.<ext> by MediaImportService, so
-      // reference the actual basename rather than the task uuid.
-      final String soundFileName = task.soundPath!.split('/').last.split('\\').last;
+      // The staged copy lives under the cache dir, which file_paths.xml
+      // exposes as cache-path name="app_cache" — hence this exact URI form.
       final UriAndroidNotificationSound customSound =
-          UriAndroidNotificationSound('content://flow_todo_fileprovider/sounds/$soundFileName');
+          UriAndroidNotificationSound('content://flow_todo_fileprovider/app_cache/sounds/$stagedSound');
 
       androidDetails = AndroidNotificationDetails(
         channelId,
@@ -159,6 +162,26 @@ class NotificationService {
       await _notificationsPlugin.cancelAll();
     } catch (_) {
       // Best-effort.
+    }
+  }
+
+  /// Copies a task sound into the cache `sounds/` directory so the
+  /// FileProvider URI handed to the notification system always resolves.
+  /// Returns the staged basename, or null when staging failed (caller falls
+  /// back to the default channel).
+  static Future<String?> _stageSoundForDelivery(String soundPath) async {
+    try {
+      final src = File(soundPath);
+      if (!await src.exists()) return null;
+      final cacheDir = await getTemporaryDirectory();
+      final destDir = Directory('${cacheDir.path}/sounds');
+      await destDir.create(recursive: true);
+      final name = soundPath.split('/').last.split('\\').last;
+      if (name.isEmpty) return null;
+      await src.copy('${destDir.path}/$name');
+      return name;
+    } catch (_) {
+      return null;
     }
   }
 

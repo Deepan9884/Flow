@@ -74,7 +74,9 @@ class KanbanScreen extends ConsumerWidget {
         return Container(
           width: 280,
           decoration: BoxDecoration(
-            color: candidateData.isNotEmpty ? const Color(0xFF0058BE).withOpacity(0.1) : const Color(0xFFF0F2F5),
+            color: candidateData.isNotEmpty
+                ? const Color(0xFF0058BE).withOpacity(0.1)
+                : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
             borderRadius: BorderRadius.circular(16),
             border: candidateData.isNotEmpty ? Border.all(color: const Color(0xFF0058BE), width: 2) : null,
           ),

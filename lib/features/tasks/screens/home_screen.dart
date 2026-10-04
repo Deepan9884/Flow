@@ -223,7 +223,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             label: Text(
                               categoryName,
                               style: TextStyle(
-                                color: isSelected ? Colors.white : Colors.black87,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                 fontSize: 13,
                               ),
@@ -235,7 +237,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               });
                             },
                             selectedColor: tagColor,
-                            backgroundColor: Colors.white,
+                            backgroundColor: Theme.of(context).colorScheme.surface,
                             side: BorderSide(
                               color: isSelected ? Colors.transparent : Colors.grey.withOpacity(0.2),
                               width: 1,
