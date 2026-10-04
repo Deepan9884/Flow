@@ -44,7 +44,7 @@ jobs:
           assert old_co in s, 'compileOptions block not found'
           s = s.replace(old_co, new_co)
           old_dep = "dependencies {}"
-          new_dep = "dependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'\n}"
+          new_dep = "dependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.2.2'\n}"
           assert old_dep in s, 'dependencies block not found'
           s = s.replace(old_dep, new_dep)
           open(p, 'w').write(s)
