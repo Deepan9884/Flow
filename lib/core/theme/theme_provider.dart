@@ -39,8 +39,7 @@ class ThemeNotifier extends StateNotifier<ThemeConfig> {
     state = newTheme;
   }
 
-  Future<void> toggleNotifications(bool enabled) async {
-    final newTheme = state.copyWith(notificationsEnabled: enabled);
+  Future<void> toggleNotifications(bool enabled) async {    final newTheme = state.copyWith(notificationsEnabled: enabled);
     try {
       await _isar.writeTxn(() async {
         await _isar.themeConfigs.put(newTheme);
@@ -53,5 +52,18 @@ class ThemeNotifier extends StateNotifier<ThemeConfig> {
       // Turning notifications off cancels everything already scheduled.
       await NotificationService.cancelAllReminders();
     }
+  }
+
+  /// Sets (or clears, when null) the global app wallpaper shown behind lists.
+  Future<void> updateAppWallpaper(String? path) async {
+    final newTheme = state.copyWith(appWallpaperPath: path);
+    try {
+      await _isar.writeTxn(() async {
+        await _isar.themeConfigs.put(newTheme);
+      });
+    } catch (e) {
+      debugPrint('Flow ThemeNotifier write failed: $e');
+    }
+    state = newTheme;
   }
 }

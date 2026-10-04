@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/theme/theme_provider.dart';
+import '../../../services/media_import_service.dart';
 import '../../tasks/providers/task_provider.dart';
 import '../../categories/providers/category_provider.dart';
 import '../../../services/backup_service.dart';
@@ -130,6 +131,33 @@ class SettingsScreen extends ConsumerWidget {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Import failed: not a valid Flow backup.')),
+                      );
+                    }
+                  }
+                },
+              ),
+              _buildSettingItem(
+                Icons.wallpaper_rounded,
+                'App Wallpaper',
+                theme.isDark,
+                trailing: theme.appWallpaperPath != null
+                    ? TextButton(
+                        onPressed: () {
+                          ref.read(themeProvider.notifier).updateAppWallpaper(null);
+                        },
+                        child: const Text('Clear', style: TextStyle(fontSize: 13)),
+                      )
+                    : const Text(
+                        'Not set',
+                        style: TextStyle(fontFamily: 'Inter', color: Colors.grey),
+                      ),
+                onTap: () async {
+                  final path = await MediaImportService.pickAndSaveImage();
+                  if (path != null) {
+                    await ref.read(themeProvider.notifier).updateAppWallpaper(path);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('App wallpaper updated')),
                       );
                     }
                   }

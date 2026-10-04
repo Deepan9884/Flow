@@ -1,6 +1,8 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../categories/models/category.dart';
+import '../../../core/theme/theme_provider.dart';
 import '../providers/task_provider.dart';
 import '../../categories/providers/category_provider.dart';
 import '../../../widgets/task_banner_card.dart';
@@ -31,6 +33,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final tasks = ref.watch(taskListProvider);
     final categories = ref.watch(categoryListProvider);
+    final appWallpaperPath = ref.watch(themeProvider).appWallpaperPath;
 
     // Filter tasks based on selected category and search query
     final filteredTasks = tasks.where((task) {
@@ -45,8 +48,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final priorityTasks = tasks.where((t) => !t.isCompleted && t.priority >= 2).toList();
 
     return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
+      body: Stack(
+        children: [
+          if (appWallpaperPath != null && appWallpaperPath.isNotEmpty) ...[
+            Positioned.fill(
+              child: Image.file(
+                File(appWallpaperPath),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+            // Wash so list content stays readable in both themes.
+            Positioned.fill(
+              child: Container(
+                color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.88),
+              ),
+            ),
+          ],
+          SafeArea(
+            child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
             // Custom App Header
@@ -442,8 +462,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
               ),
-          ],
+            ],
+          ),
         ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => showAddTaskSheet(context, ref),
