@@ -48,16 +48,17 @@ class NotificationService {
   /// Schedules a reminder for a specific task.
   /// First requests permission, then sets up standard or task-specific sound channels.
   static Future<void> scheduleTaskReminder(Task task) async {
-    if (task.reminderAt == null) return;
+    try {
+      if (task.reminderAt == null) return;
 
-    // 1. Request notification permissions (required runtime permissions on Android 13+ and iOS)
-    final permissionStatus = await Permission.notification.request();
-    if (!permissionStatus.isGranted) return;
+      // 1. Request notification permissions (required runtime permissions on Android 13+ and iOS)
+      final permissionStatus = await Permission.notification.request();
+      if (!permissionStatus.isGranted) return;
 
-    final scheduleTime = task.reminderAt!;
-    if (scheduleTime.isBefore(DateTime.now())) return;
+      final scheduleTime = task.reminderAt!;
+      if (scheduleTime.isBefore(DateTime.now())) return;
 
-    final int notificationId = task.uuid.hashCode;
+      final int notificationId = task.uuid.hashCode;
     
     // Check if the app is active in the foreground - if so, play via just_audio directly.
     // In a real app we'd query AppLifecycleState, but here we provide playForegroundSound
@@ -148,6 +149,11 @@ class NotificationService {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
+    }
+    } catch (_) {
+      // Scheduling is best-effort: permission denied, exact-alarm blocked,
+      // or plugin not ready must never crash the app. The reminder data
+      // itself is already persisted in Isar.
     }
   }
 

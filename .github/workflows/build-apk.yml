@@ -41,22 +41,25 @@ jobs:
           python3 - <<'EOF'
           p = 'android/app/build.gradle'
           s = open(p).read().replace('\r\n', '\n')
+          def rep(old, new, label):
+              global s
+              if old in s:
+                  s = s.replace(old, new)
+                  print(f'patched: {label}')
+              else:
+                  print(f'skipped (already applied or template changed): {label}')
           old_co = "    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8\n    }"
           new_co = "    compileOptions {\n        coreLibraryDesugaringEnabled true\n        sourceCompatibility JavaVersion.VERSION_1_8\n        targetCompatibility JavaVersion.VERSION_1_8\n    }"
-          assert old_co in s, 'compileOptions block not found'
-          s = s.replace(old_co, new_co)
-          old_min = "minSdkVersion flutter.minSdkVersion"
-          new_min = "minSdkVersion 21"
-          assert old_min in s, 'minSdkVersion block not found'
-          s = s.replace(old_min, new_min)
-          old_dep = "dependencies {}"
-          new_dep = "dependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.2.2'\n}"
-          assert old_dep in s, 'dependencies block not found'
-          s = s.replace(old_dep, new_dep)
-          old_sign = "signingConfig signingConfigs.debug"
-          new_sign = "signingConfig signingConfigs.debug\n            minifyEnabled false\n            shrinkResources false"
-          assert old_sign in s, 'signingConfig block not found'
-          s = s.replace(old_sign, new_sign)
+          rep(old_co, new_co, 'desugar-compileOptions')
+          rep("minSdkVersion flutter.minSdkVersion", "minSdkVersion 21", 'minSdk-21')
+          if 'desugar_jdk_libs' not in s:
+              rep("dependencies {}", "dependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.2.2'\n}", 'desugar-dep')
+          else:
+              print('skipped (already applied or template changed): desugar-dep')
+          if 'minifyEnabled' not in s:
+              rep("signingConfig signingConfigs.debug", "signingConfig signingConfigs.debug\n            minifyEnabled false\n            shrinkResources false", 'no-shrink')
+          else:
+              print('skipped (already applied or template changed): no-shrink')
           open(p, 'w').write(s)
           EOF
           grep -A4 'compileOptions' android/app/build.gradle
@@ -105,10 +108,10 @@ jobs:
         run: dart run flutter_launcher_icons
 
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-shrink
 
       - name: Build App Bundle
-        run: flutter build appbundle --release
+        run: flutter build appbundle --release --no-shrink
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

@@ -14,7 +14,10 @@ class BackupService {
   static const int backupVersion = 1;
 
   static Future<String> exportToFile() async {
-    final Isar isar = AppDatabase.instance;
+    final Isar? isar = AppDatabase.instanceOrNull;
+    if (isar == null) {
+      throw StateError('Database is not available, cannot export backup.');
+    }
     final tasks = await isar.tasks.where().findAll();
     final categories = await isar.categorys.where().findAll();
 
@@ -45,7 +48,10 @@ class BackupService {
       throw const FormatException('Backup is missing tasks/categories');
     }
 
-    final Isar isar = AppDatabase.instance;
+    final Isar? isar = AppDatabase.instanceOrNull;
+    if (isar == null) {
+      throw StateError('Database is not available, cannot import backup.');
+    }
     var taskCount = 0;
     var categoryCount = 0;
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'core/db/app_database.dart';
@@ -8,21 +9,25 @@ void main() async {
   // Ensure Flutter framework hooks are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  String? startupError;
+  // Log async framework errors instead of crashing the release build.
+  FlutterError.onError = (details) {
+    debugPrint('Flow FlutterError: ${details.exceptionAsString()}');
+  };
+
+  // Database init is the only blocking startup step. A short timeout keeps
+  // a slow/corrupt device store from looking like a hung launch, and a
+  // failure degrades to in-memory state — the app always opens.
   try {
-    // Initialize Isar database collections
-    await AppDatabase.init();
+    await AppDatabase.init().timeout(const Duration(seconds: 10));
   } catch (e, stack) {
     debugPrint('AppDatabase.init error: $e\n$stack');
-    startupError = e.toString();
   }
 
-  try {
-    // Initialize local notifications + timezone database before any scheduling
-    await NotificationService.init();
-  } catch (e, stack) {
-    debugPrint('NotificationService.init error: $e\n$stack');
-  }
+  // Notifications must never block or break launch: schedule init after the
+  // first frame, fire-and-forget, with all errors swallowed inside the service.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(NotificationService.init());
+  });
 
   // Never white-screen: render a branded fallback when a widget throws.
   ErrorWidget.builder = (details) {
@@ -61,39 +66,6 @@ void main() async {
       ),
     );
   };
-
-  if (startupError != null) {
-    runApp(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          body: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.error_outline_rounded, size: 56, color: Color(0xFF0058BE)),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Flow Startup Error',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    startupError,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    return;
-  }
 
   runApp(
     const ProviderScope(

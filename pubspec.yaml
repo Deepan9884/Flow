@@ -1,6 +1,6 @@
 name: flow_todo
 description: A high-utility, focus-oriented Todo application with Riverpod, Isar, and Freezed.
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

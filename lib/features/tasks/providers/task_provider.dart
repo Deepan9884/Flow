@@ -20,11 +20,13 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     _loadTasks();
   }
 
-  final Isar _isar = AppDatabase.instance;
+  Isar? get _isar => AppDatabase.instanceOrNull;
 
   Future<void> _loadTasks() async {
     try {
-      final tasks = await _isar.tasks.where().findAll();
+      final db = _isar;
+      if (db == null) return;
+      final tasks = await db.tasks.where().findAll();
       // Sort tasks: uncompleted first, then by priority (descending), then by due date
       _sortAndSetState(tasks);
     } catch (e) {
@@ -34,10 +36,12 @@ class TaskNotifier extends StateNotifier<List<Task>> {
 
   /// Runs [op] inside a write transaction. Storage failures are logged and
   /// swallowed so a full/corrupt disk degrades instead of crashing the app.
-  Future<void> _guardedWrite(Future<void> Function() op) async {
+  Future<void> _guardedWrite(Future<void> Function(Isar db) op) async {
     try {
-      await _isar.writeTxn(() async {
-        await op();
+      final db = _isar;
+      if (db == null) return;
+      await db.writeTxn(() async {
+        await op(db);
       });
     } catch (e) {
       debugPrint('Flow TaskNotifier write failed: $e');
@@ -46,7 +50,9 @@ class TaskNotifier extends StateNotifier<List<Task>> {
 
   /// Reads the user-facing notifications kill-switch (defaults to on).
   Future<bool> _notificationsEnabled() async {
-    final cfg = await _isar.themeConfigs.where().findFirst();
+    final db = _isar;
+    if (db == null) return true;
+    final cfg = await db.themeConfigs.where().findFirst();
     return cfg?.notificationsEnabled ?? true;
   }
 
@@ -98,8 +104,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       soundPath: soundPath,
     );
 
-    await _guardedWrite(() async {
-      await _isar.tasks.put(task);
+    await _guardedWrite((db) async {
+      await db.tasks.put(task);
     });
 
     // Refresh the list first so the new task always appears, even if
@@ -118,8 +124,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _guardedWrite(() async {
-      await _isar.tasks.put(updatedTask);
+    await _guardedWrite((db) async {
+      await db.tasks.put(updatedTask);
     });
 
     // A completed task must not keep firing its old reminder.
@@ -134,8 +140,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
 
   Future<void> deleteTask(String taskId) async {
     final hashId = taskId.hashCode;
-    await _guardedWrite(() async {
-      await _isar.tasks.delete(hashId);
+    await _guardedWrite((db) async {
+      await db.tasks.delete(hashId);
     });
     await NotificationService.cancelTaskReminder(taskId);
     await _loadTasks();
@@ -158,8 +164,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _guardedWrite(() async {
-      await _isar.tasks.put(updatedTask);
+    await _guardedWrite((db) async {
+      await db.tasks.put(updatedTask);
     });
 
     await _loadTasks();
@@ -182,8 +188,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _guardedWrite(() async {
-      await _isar.tasks.put(updatedTask);
+    await _guardedWrite((db) async {
+      await db.tasks.put(updatedTask);
     });
 
     await _loadTasks();
@@ -198,8 +204,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       priority: priority,
       updatedAt: DateTime.now(),
     );
-    await _guardedWrite(() async {
-      await _isar.tasks.put(updatedTask);
+    await _guardedWrite((db) async {
+      await db.tasks.put(updatedTask);
     });
     if (isCompleted) {
       await NotificationService.cancelTaskReminder(taskId);
@@ -226,8 +232,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: now,
     );
 
-    await _guardedWrite(() async {
-      await _isar.tasks.put(next);
+    await _guardedWrite((db) async {
+      await db.tasks.put(next);
     });
 
     await _scheduleIfEnabled(next);
@@ -244,8 +250,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _guardedWrite(() async {
-      await _isar.tasks.put(updatedTask);
+    await _guardedWrite((db) async {
+      await db.tasks.put(updatedTask);
     });
 
     await NotificationService.cancelTaskReminder(taskId);
@@ -264,8 +270,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _guardedWrite(() async {
-      await _isar.tasks.put(updatedTask);
+    await _guardedWrite((db) async {
+      await db.tasks.put(updatedTask);
     });
 
     await _loadTasks();
@@ -281,8 +287,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _guardedWrite(() async {
-      await _isar.tasks.put(updatedTask);
+    await _guardedWrite((db) async {
+      await db.tasks.put(updatedTask);
     });
 
     await _loadTasks();
@@ -298,8 +304,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       updatedAt: DateTime.now(),
     );
 
-    await _guardedWrite(() async {
-      await _isar.tasks.put(updatedTask);
+    await _guardedWrite((db) async {
+      await db.tasks.put(updatedTask);
     });
 
     await _loadTasks();

@@ -15,11 +15,13 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
     _loadCategories();
   }
 
-  final Isar _isar = AppDatabase.instance;
+  Isar? get _isar => AppDatabase.instanceOrNull;
 
   Future<void> _loadCategories() async {
     try {
-      final categories = await _isar.categorys.where().findAll();
+      final db = _isar;
+      if (db == null) return;
+      final categories = await db.categorys.where().findAll();
 
       if (categories.isEmpty) {
         // Seed default categories matching elegant design colors
@@ -30,9 +32,9 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
           const Category(uuid: 'health', name: 'Health', colorValue: 0xFFEF4444, iconName: 'favorite_rounded'),
         ];
 
-        await _guardedWrite(() async {
+        await _guardedWrite((db) async {
           for (var cat in defaults) {
-            await _isar.categorys.put(cat);
+            await db.categorys.put(cat);
           }
         });
         state = defaults;
@@ -46,10 +48,12 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
 
   /// Runs [op] inside a write transaction. Storage failures are logged and
   /// swallowed so a full/corrupt disk degrades instead of crashing the app.
-  Future<void> _guardedWrite(Future<void> Function() op) async {
+  Future<void> _guardedWrite(Future<void> Function(Isar db) op) async {
     try {
-      await _isar.writeTxn(() async {
-        await op();
+      final db = _isar;
+      if (db == null) return;
+      await db.writeTxn(() async {
+        await op(db);
       });
     } catch (e) {
       debugPrint('Flow CategoryNotifier write failed: $e');
@@ -68,8 +72,8 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
       iconName: iconName ?? 'label_rounded',
     );
 
-    await _guardedWrite(() async {
-      await _isar.categorys.put(category);
+    await _guardedWrite((db) async {
+      await db.categorys.put(category);
     });
 
     await _loadCategories();
@@ -77,14 +81,14 @@ class CategoryNotifier extends StateNotifier<List<Category>> {
 
   Future<void> deleteCategory(String categoryId) async {
     final hashId = categoryId.hashCode;
-    await _guardedWrite(() async {
-      await _isar.categorys.delete(hashId);
+    await _guardedWrite((db) async {
+      await db.categorys.delete(hashId);
       // Detach the deleted category from every task so no orphan ids remain.
-      final tasks = await _isar.tasks.where().findAll();
+      final tasks = await db.tasks.where().findAll();
       for (final task in tasks) {
         if (task.categoryIds.contains(categoryId)) {
           final updatedIds = List<String>.from(task.categoryIds)..remove(categoryId);
-          await _isar.tasks.put(
+          await db.tasks.put(
             task.copyWith(categoryIds: updatedIds, updatedAt: DateTime.now()),
           );
         }

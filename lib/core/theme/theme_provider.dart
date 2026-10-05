@@ -14,11 +14,13 @@ class ThemeNotifier extends StateNotifier<ThemeConfig> {
     _loadTheme();
   }
 
-  final Isar _isar = AppDatabase.instance;
+  Isar? get _isar => AppDatabase.instanceOrNull;
 
   Future<void> _loadTheme() async {
     try {
-      final theme = await _isar.themeConfigs.where().findFirst();
+      final db = _isar;
+      if (db == null) return;
+      final theme = await db.themeConfigs.where().findFirst();
       if (theme != null) {
         state = theme;
       }
@@ -30,8 +32,13 @@ class ThemeNotifier extends StateNotifier<ThemeConfig> {
   Future<void> toggleDarkMode(bool isDark) async {
     final newTheme = state.copyWith(isDark: isDark);
     try {
-      await _isar.writeTxn(() async {
-        await _isar.themeConfigs.put(newTheme);
+      final db = _isar;
+      if (db == null) {
+        state = newTheme;
+        return;
+      }
+      await db.writeTxn(() async {
+        await db.themeConfigs.put(newTheme);
       });
     } catch (e) {
       debugPrint('Flow ThemeNotifier write failed: $e');
@@ -41,8 +48,13 @@ class ThemeNotifier extends StateNotifier<ThemeConfig> {
 
   Future<void> toggleNotifications(bool enabled) async {    final newTheme = state.copyWith(notificationsEnabled: enabled);
     try {
-      await _isar.writeTxn(() async {
-        await _isar.themeConfigs.put(newTheme);
+      final db = _isar;
+      if (db == null) {
+        state = newTheme;
+        return;
+      }
+      await db.writeTxn(() async {
+        await db.themeConfigs.put(newTheme);
       });
     } catch (e) {
       debugPrint('Flow ThemeNotifier write failed: $e');
@@ -58,8 +70,13 @@ class ThemeNotifier extends StateNotifier<ThemeConfig> {
   Future<void> updateAppWallpaper(String? path) async {
     final newTheme = state.copyWith(appWallpaperPath: path);
     try {
-      await _isar.writeTxn(() async {
-        await _isar.themeConfigs.put(newTheme);
+      final db = _isar;
+      if (db == null) {
+        state = newTheme;
+        return;
+      }
+      await db.writeTxn(() async {
+        await db.themeConfigs.put(newTheme);
       });
     } catch (e) {
       debugPrint('Flow ThemeNotifier write failed: $e');
