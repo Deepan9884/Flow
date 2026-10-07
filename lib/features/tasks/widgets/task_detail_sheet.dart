@@ -6,6 +6,7 @@ import '../providers/task_provider.dart';
 import '../../categories/providers/category_provider.dart';
 import '../../../widgets/task_banner_card.dart';
 import '../../../services/media_import_service.dart';
+import 'sound_selection_modal.dart';
 import '../utils/task_ui_helpers.dart';
 
 void showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
@@ -442,13 +443,16 @@ void showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
                         ),
                         TextButton.icon(
                           onPressed: () async {
-                            final path = await MediaImportService.pickAndSaveAudio();
-                            if (path != null) {
-                              await ref.read(taskListProvider.notifier).updateTaskSound(liveTask.uuid, path);
-                              setDetailState(() {});
-                            }
+                            await showSoundSelectionModal(
+                              context: context,
+                              currentSoundPath: liveTask.soundPath,
+                              onSoundSelected: (newPath) async {
+                                await ref.read(taskListProvider.notifier).updateTaskSound(liveTask.uuid, newPath);
+                                setDetailState(() {});
+                              },
+                            );
                           },
-                          icon: const Icon(Icons.music_note_rounded, size: 16),
+                          icon: const Icon(Icons.notifications_active_rounded, size: 16),
                           label: const Text('Alert Sound', style: TextStyle(fontSize: 11)),
                         ),
                         // Delete Button

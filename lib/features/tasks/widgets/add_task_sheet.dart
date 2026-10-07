@@ -4,7 +4,8 @@ import '../models/recurrence_rule.dart';
 import '../../categories/providers/category_provider.dart';
 import '../providers/task_provider.dart';
 import '../../../widgets/wallpaper_picker_tile.dart';
-import '../../../services/media_import_service.dart';
+import 'sound_selection_modal.dart';
+import '../../../services/notification_service.dart';
 import 'package:intl/intl.dart';
 import '../utils/task_ui_helpers.dart';
 
@@ -12,9 +13,17 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
     final titleController = TextEditingController();
     final notesController = TextEditingController();
     DateTime selectedDate = DateTime.now();
-    bool hasSelectedDate = false;
-    TimeOfDay? selectedStartTime;
-    TimeOfDay? selectedCompletionTime;
+    bool hasSelectedDate = true;
+
+    // Set intuitive default reminder: 5 minutes from now for immediate usability & testing!
+    final now = DateTime.now();
+    final defaultStart = now.add(const Duration(minutes: 5));
+    final defaultFinish = now.add(const Duration(minutes: 35));
+
+    TimeOfDay? selectedStartTime = TimeOfDay.fromDateTime(defaultStart);
+    TimeOfDay? selectedCompletionTime = TimeOfDay.fromDateTime(defaultFinish);
+    String selectedPreset = '5m'; // '2m', '5m', '15m', '1h', 'custom', 'none'
+
     int selectedPriority = initialPriority;
     RecurrenceFrequency selectedFrequency = RecurrenceFrequency.none;
     String? selectedCategoryId;
@@ -28,15 +37,40 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
+      builder: (bottomSheetContext) {
         return StatefulBuilder(
-              builder: (context, setSheetState) {
+              builder: (ctx, setSheetState) {
                 final theme = Theme.of(context);
                 final isDark = theme.brightness == Brightness.dark;
                 final borderColor = isDark
                     ? Colors.white.withOpacity(0.12)
                     : Colors.black.withOpacity(0.1);
                 const focusedBorderColor = Color(0xFF0058BE);
+
+                void applyPreset(String preset) {
+                  final cur = DateTime.now();
+                  setSheetState(() {
+                    selectedPreset = preset;
+                    selectedDate = cur;
+                    hasSelectedDate = true;
+                    if (preset == '2m') {
+                      selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 2)));
+                      selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 15)));
+                    } else if (preset == '5m') {
+                      selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 5)));
+                      selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 35)));
+                    } else if (preset == '15m') {
+                      selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 15)));
+                      selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 45)));
+                    } else if (preset == '1h') {
+                      selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(hours: 1)));
+                      selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(hours: 2)));
+                    } else if (preset == 'none') {
+                      selectedStartTime = null;
+                      selectedCompletionTime = null;
+                    }
+                  });
+                }
 
                 return Container(
                   decoration: BoxDecoration(
@@ -50,7 +84,7 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                     left: 20,
                     right: 20,
                     top: 14,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                    bottom: MediaQuery.of(bottomSheetContext).viewInsets.bottom + 20,
                   ),
                   child: SingleChildScrollView(
                     child: Column(
@@ -281,13 +315,13 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                           const SizedBox(height: 16),
                         ],
 
-                    // Schedule & Timings Section
+                    // Schedule & Reminders Section Header
                     Row(
                       children: [
-                        const Icon(Icons.schedule_rounded, size: 16, color: Color(0xFF0058BE)),
+                        const Icon(Icons.notifications_active_rounded, size: 16, color: Color(0xFF0058BE)),
                         const SizedBox(width: 6),
                         const Text(
-                          'Schedule & Timings',
+                          'Schedule & Reminders',
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                         ),
                         const Spacer(),
@@ -310,6 +344,74 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                     ),
                     const SizedBox(height: 10),
 
+                    // Quick Preset Chips for Reminders
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildPresetChip('⚡ In 2m (Test)', '2m', selectedPreset, () => applyPreset('2m'), isDark),
+                          const SizedBox(width: 6),
+                          _buildPresetChip('🔔 In 5m (Default)', '5m', selectedPreset, () => applyPreset('5m'), isDark),
+                          const SizedBox(width: 6),
+                          _buildPresetChip('In 15m', '15m', selectedPreset, () => applyPreset('15m'), isDark),
+                          const SizedBox(width: 6),
+                          _buildPresetChip('In 1h', '1h', selectedPreset, () => applyPreset('1h'), isDark),
+                          const SizedBox(width: 6),
+                          _buildPresetChip('Custom', 'custom', selectedPreset, () {
+                            setSheetState(() => selectedPreset = 'custom');
+                          }, isDark),
+                          const SizedBox(width: 6),
+                          _buildPresetChip('No Alert', 'none', selectedPreset, () => applyPreset('none'), isDark),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Active reminder status card
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: selectedStartTime != null
+                            ? const Color(0xFF0058BE).withOpacity(0.06)
+                            : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03)),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: selectedStartTime != null
+                              ? const Color(0xFF0058BE).withOpacity(0.25)
+                              : Colors.grey.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            selectedStartTime != null
+                                ? Icons.notification_important_rounded
+                                : Icons.notifications_off_outlined,
+                            size: 16,
+                            color: selectedStartTime != null
+                                ? const Color(0xFF0058BE)
+                                : Colors.grey,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              selectedStartTime != null
+                                  ? 'Alerts 5m before start (${selectedStartTime!.format(context)}) + 10m before finish (${selectedCompletionTime?.format(context) ?? "N/A"})'
+                                  : 'No notification will be scheduled for this task',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: selectedStartTime != null
+                                    ? (isDark ? Colors.white70 : const Color(0xFF0058BE))
+                                    : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
                     // 1. Task Date Selector Card
                     InkWell(
                       onTap: () async {
@@ -323,6 +425,7 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                           setSheetState(() {
                             selectedDate = picked;
                             hasSelectedDate = true;
+                            selectedPreset = 'custom';
                           });
                         }
                       },
@@ -381,6 +484,7 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                               if (time != null) {
                                 setSheetState(() {
                                   selectedStartTime = time;
+                                  selectedPreset = 'custom';
                                 });
                               }
                             },
@@ -414,7 +518,10 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                       ),
                                       if (selectedStartTime != null)
                                         GestureDetector(
-                                          onTap: () => setSheetState(() => selectedStartTime = null),
+                                          onTap: () => setSheetState(() {
+                                            selectedStartTime = null;
+                                            selectedPreset = 'custom';
+                                          }),
                                           child: const Icon(Icons.close_rounded, size: 14, color: Colors.grey),
                                         ),
                                     ],
@@ -453,6 +560,7 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                               if (time != null) {
                                 setSheetState(() {
                                   selectedCompletionTime = time;
+                                  selectedPreset = 'custom';
                                 });
                               }
                             },
@@ -486,7 +594,10 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                       ),
                                       if (selectedCompletionTime != null)
                                         GestureDetector(
-                                          onTap: () => setSheetState(() => selectedCompletionTime = null),
+                                          onTap: () => setSheetState(() {
+                                            selectedCompletionTime = null;
+                                            selectedPreset = 'custom';
+                                          }),
                                           child: const Icon(Icons.close_rounded, size: 14, color: Colors.grey),
                                         ),
                                     ],
@@ -592,17 +703,20 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                     ),
                     const SizedBox(height: 12),
 
-                    // Custom Alarm Audio Import widget
+                    // Notification Sound & Testing Card
                     Material(
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: () async {
-                          final path = await MediaImportService.pickAndSaveAudio();
-                          if (path != null) {
-                            setSheetState(() {
-                              pickedSoundPath = path;
-                            });
-                          }
+                          await showSoundSelectionModal(
+                            context: context,
+                            currentSoundPath: pickedSoundPath,
+                            onSoundSelected: (newPath) {
+                              setSheetState(() {
+                                pickedSoundPath = newPath;
+                              });
+                            },
+                          );
                         },
                         borderRadius: BorderRadius.circular(14),
                         child: Container(
@@ -613,46 +727,51 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                 : const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: isDark
-                                  ? Colors.white.withOpacity(0.12)
-                                  : Colors.black.withOpacity(0.08),
+                              color: pickedSoundPath != null
+                                  ? Colors.orange.withOpacity(0.5)
+                                  : (isDark
+                                      ? Colors.white.withOpacity(0.12)
+                                      : Colors.black.withOpacity(0.08)),
                               width: 1,
                             ),
                           ),
                           child: Row(
                             children: [
                               Container(
-                                width: 44,
-                                height: 44,
+                                width: 42,
+                                height: 42,
                                 decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.12),
+                                  color: (pickedSoundPath != null ? Colors.orange : const Color(0xFF0058BE))
+                                      .withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Icon(
-                                  Icons.audiotrack_rounded,
-                                  color: Colors.orange,
+                                child: Icon(
+                                  pickedSoundPath != null ? Icons.music_note_rounded : Icons.notifications_active_rounded,
+                                  color: pickedSoundPath != null ? Colors.orange : const Color(0xFF0058BE),
                                   size: 22,
                                 ),
                               ),
-                              const SizedBox(width: 14),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     const Text(
-                                      'Task Specific Sound',
+                                      'Notification Ringtone & Sound',
                                       style: TextStyle(
                                         fontFamily: 'Inter',
                                         fontWeight: FontWeight.bold,
-                                        fontSize: 13.5,
+                                        fontSize: 13,
                                       ),
                                     ),
-                                    const SizedBox(height: 3),
+                                    const SizedBox(height: 2),
                                     Text(
                                       pickedSoundPath != null
-                                          ? 'Sound configured for this task'
-                                          : 'Tap to pick custom notification ringtone',
+                                          ? 'Custom Audio: ${pickedSoundPath!.split("/").last.split("\\").last}'
+                                          : 'Default System Chime • Tap to test or change',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontFamily: 'Inter',
                                         color: isDark ? Colors.white60 : Colors.black54,
@@ -662,35 +781,60 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                   ],
                                 ),
                               ),
-                              if (pickedSoundPath != null)
-                                InkWell(
-                                  onTap: () {
-                                    setSheetState(() {
-                                      pickedSoundPath = null;
-                                    });
-                                  },
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? Colors.white.withOpacity(0.1)
-                                          : Colors.black.withOpacity(0.06),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.close_rounded,
-                                      size: 16,
-                                      color: isDark ? Colors.white70 : Colors.black54,
-                                    ),
+                              // Instant Quick Test Button
+                              InkWell(
+                                onTap: () async {
+                                  await NotificationService.showTestNotification(
+                                    customSoundPath: pickedSoundPath,
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Row(
+                                          children: [
+                                            Icon(Icons.volume_up_rounded, color: Colors.white, size: 16),
+                                            SizedBox(width: 8),
+                                            Text('🔔 Test alert sent! Check your notification bar.'),
+                                          ],
+                                        ),
+                                        duration: Duration(seconds: 2),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.green.withOpacity(0.35)),
                                   ),
-                                )
-                              else
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  color: isDark ? Colors.white38 : Colors.black26,
-                                  size: 22,
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.volume_up_rounded, size: 13, color: Colors.green),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'Test',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: isDark ? Colors.white38 : Colors.black26,
+                                size: 20,
+                              ),
                             ],
                           ),
                         ),
@@ -750,7 +894,28 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                       ? null
                                       : RecurrenceRule(frequency: selectedFrequency),
                                 );
+
                             Navigator.pop(context);
+
+                            if (finalStartTime != null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Task added! 🔔 Reminder set for ${DateFormat('h:mm a').format(finalStartTime)}',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  duration: const Duration(seconds: 3),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
                           }
                         },
                         icon: const Icon(Icons.add_task_rounded, size: 20),
@@ -781,6 +946,46 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
         );
       },
     );
+}
+
+Widget _buildPresetChip(
+  String label,
+  String value,
+  String currentPreset,
+  VoidCallback onTap,
+  bool isDark,
+) {
+  final isSelected = currentPreset == value;
+  const primaryColor = Color(0xFF0058BE);
+
+  return InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(8),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? primaryColor
+            : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF1F5F9)),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isSelected ? primaryColor : (isDark ? Colors.white12 : Colors.black12),
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 11.5,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          color: isSelected
+              ? Colors.white
+              : (isDark ? Colors.white70 : Colors.black87),
+        ),
+      ),
+    ),
+  );
 }
 
 String _formatDateDisplay(DateTime dt, bool hasCustom) {

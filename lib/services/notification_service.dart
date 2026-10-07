@@ -14,20 +14,34 @@ class NotificationService {
 
   static AudioPlayer? _foregroundPlayer;
 
-  /// Initializes the local notifications plugin
+  /// Initializes the local notifications plugin and creates high-priority channels
   static Future<void> init() async {
     try {
-      // Initialize timezone database for zoned reminders
+      // 1. Initialize timezone database and set device local timezone
       tz.initializeTimeZones();
+      try {
+        final now = DateTime.now();
+        final offset = now.timeZoneOffset;
+        tz.Location? matchedLocation;
+        for (final loc in tz.timeZoneDatabase.locations.values) {
+          if (loc.currentTimeZone.offset == offset.inMilliseconds) {
+            matchedLocation = loc;
+            break;
+          }
+        }
+        if (matchedLocation != null) {
+          tz.setLocalLocation(matchedLocation);
+        }
+      } catch (_) {}
 
       const AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
 
       const DarwinInitializationSettings initializationSettingsIOS =
           DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
       );
 
       const InitializationSettings initializationSettings = InitializationSettings(
@@ -41,9 +55,72 @@ class NotificationService {
           // Tap handler logic
         },
       );
+
+      // 2. Explicitly create high-importance Android Notification Channel
+      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+          _notificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImplementation != null) {
+        const AndroidNotificationChannel defaultChannel = AndroidNotificationChannel(
+          'default_reminders_channel',
+          'Task Reminders',
+          description: 'High-priority task alerts with sound and vibration',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          showBadge: true,
+        );
+
+        await androidImplementation.createNotificationChannel(defaultChannel);
+        await androidImplementation.requestNotificationsPermission();
+        await androidImplementation.requestExactAlarmsPermission();
+      }
     } catch (_) {
       // Notification initialization must never prevent the app from launching.
     }
+  }
+
+  /// Displays an instant test notification immediately with sound and banner,
+  /// so the user can verify that notifications and sounds work on their phone.
+  static Future<void> showTestNotification({String? customSoundPath}) async {
+    try {
+      await init();
+      final androidPlugin = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      await androidPlugin?.requestNotificationsPermission();
+
+      // If custom sound provided, play through audio engine
+      if (customSoundPath != null && customSoundPath.isNotEmpty) {
+        unawaited(playForegroundSound(customSoundPath));
+      }
+
+      const details = NotificationDetails(
+        android: AndroidNotificationDetails(
+          'default_reminders_channel',
+          'Task Reminders',
+          channelDescription: 'High-priority task alerts with sound and vibration',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          enableVibration: true,
+          visibility: NotificationVisibility.public,
+          fullScreenIntent: true,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      );
+
+      await _notificationsPlugin.show(
+        999999,
+        'Flow Todo: Notifications Active! 🔔',
+        'Your alert and notification sound are working perfectly.',
+        details,
+      );
+    } catch (_) {}
   }
 
   /// Schedules personalized reminders for a specific task:
@@ -54,13 +131,12 @@ class NotificationService {
       if (task.isCompleted) return;
       if (task.reminderAt == null && task.dueDate == null) return;
 
-      // 1. Request notification permissions (required runtime permissions on Android 13+ and iOS)
-      final permissionStatus = await Permission.notification.request();
-      if (!permissionStatus.isGranted) return;
+      // Ensure notification permissions are requested on Android 13+ and iOS
+      await Permission.notification.request();
 
       final now = DateTime.now();
 
-      // 2. Prepare Android & iOS Notification Details
+      // Prepare Android & iOS Notification Details
       final String? stagedSound = (task.soundPath != null && task.soundPath!.isNotEmpty)
           ? await _stageSoundForDelivery(task.soundPath!)
           : null;
@@ -68,68 +144,100 @@ class NotificationService {
       final NotificationDetails notificationDetails = _buildNotificationDetails(task, stagedSound);
       final NotificationDetails fallbackDetails = _buildFallbackDetails();
 
-      // --- Notification 1: 5 minutes before Start Time ---
+      // --- Notification 1: Start Time (5m pre-alert + start alert) ---
       if (task.reminderAt != null) {
         final startAt = task.reminderAt!;
         final notifyStartAt = startAt.subtract(const Duration(minutes: 5));
-        
-        DateTime? targetTrigger;
-        String title = '';
-        String body = '';
         final timeStr = DateFormat('h:mm a').format(startAt.toLocal());
+        final int preStartId = '${task.uuid}_pre_start'.hashCode & 0x7FFFFFFF;
+        final int startId = '${task.uuid}_start'.hashCode & 0x7FFFFFFF;
 
-        if (notifyStartAt.isAfter(now)) {
-          targetTrigger = notifyStartAt;
-          title = 'Ready for ${task.title}? 🚀';
-          body = 'Starting in 5 mins ($timeStr). Let\'s get focused and crush this!';
+        if (notifyStartAt.isAfter(now.add(const Duration(seconds: 5)))) {
+          // Standard future case: Start is more than 5 minutes away
+          await _scheduleZonedNotification(
+            id: preStartId,
+            title: 'Ready for ${task.title}? 🚀',
+            body: 'Starting in 5 mins ($timeStr). Let\'s get focused and crush this!',
+            triggerAt: notifyStartAt,
+            primaryDetails: notificationDetails,
+            fallbackDetails: fallbackDetails,
+          );
         } else if (startAt.isAfter(now)) {
-          // Less than 5 mins remaining before start; schedule at exact start time
-          targetTrigger = startAt;
-          title = 'Time for ${task.title}! 🚀';
-          body = 'Scheduled to begin now ($timeStr). Let\'s dive in!';
+          // Starting within 5 minutes! Trigger pre-alert right now so the user receives notification!
+          final minsLeft = startAt.difference(now).inMinutes;
+          final minsLabel = minsLeft <= 1 ? '5 mins' : '$minsLeft mins';
+          try {
+            await _notificationsPlugin.show(
+              preStartId,
+              'Ready for ${task.title}? 🚀',
+              'Starting in $minsLabel ($timeStr). Let\'s get focused and crush this!',
+              notificationDetails,
+            );
+          } catch (_) {
+            await _notificationsPlugin.show(
+              preStartId,
+              'Ready for ${task.title}? 🚀',
+              'Starting in $minsLabel ($timeStr). Let\'s get focused and crush this!',
+              fallbackDetails,
+            );
+          }
         }
 
-        if (targetTrigger != null) {
-          final int startId = '${task.uuid}_start'.hashCode & 0x7FFFFFFF;
+        // Schedule the start notification for startAt
+        if (startAt.isAfter(now.add(const Duration(seconds: 5)))) {
           await _scheduleZonedNotification(
             id: startId,
-            title: title,
-            body: body,
-            triggerAt: targetTrigger,
+            title: 'Time for ${task.title}! 🚀',
+            body: 'Scheduled to begin now ($timeStr). Let\'s dive in!',
+            triggerAt: startAt,
+            primaryDetails: notificationDetails,
+            fallbackDetails: fallbackDetails,
+          );
+        } else if (now.difference(startAt).inMinutes.abs() <= 2) {
+          // Scheduled right now! Show immediately
+          try {
+            await _notificationsPlugin.show(
+              startId,
+              'Time for ${task.title}! 🚀',
+              'Scheduled to begin now ($timeStr). Let\'s dive in!',
+              notificationDetails,
+            );
+          } catch (_) {
+            await _notificationsPlugin.show(
+              startId,
+              'Time for ${task.title}! 🚀',
+              'Scheduled to begin now ($timeStr). Let\'s dive in!',
+              fallbackDetails,
+            );
+          }
+        }
+      }
+
+      // --- Notification 2: Completion Time (10m pre-alert + target reached) ---
+      if (task.dueDate != null) {
+        final dueAt = task.dueDate!;
+        final notifyDueAt = dueAt.subtract(const Duration(minutes: 10));
+        final timeStr = DateFormat('h:mm a').format(dueAt.toLocal());
+        final int preFinishId = '${task.uuid}_pre_finish'.hashCode & 0x7FFFFFFF;
+        final int finishId = '${task.uuid}_finish'.hashCode & 0x7FFFFFFF;
+
+        if (notifyDueAt.isAfter(now.add(const Duration(seconds: 5)))) {
+          await _scheduleZonedNotification(
+            id: preFinishId,
+            title: 'Checking in on ${task.title}! ⏱️',
+            body: '10 mins left until $timeStr. Are you almost finished? Take a moment to wrap it up!',
+            triggerAt: notifyDueAt,
             primaryDetails: notificationDetails,
             fallbackDetails: fallbackDetails,
           );
         }
-      }
 
-      // --- Notification 2: 10 minutes before Completion Time ---
-      if (task.dueDate != null) {
-        final dueAt = task.dueDate!;
-        final notifyDueAt = dueAt.subtract(const Duration(minutes: 10));
-
-        DateTime? targetTrigger;
-        String title = '';
-        String body = '';
-        final timeStr = DateFormat('h:mm a').format(dueAt.toLocal());
-
-        if (notifyDueAt.isAfter(now)) {
-          targetTrigger = notifyDueAt;
-          title = 'Checking in on ${task.title}! ⏱️';
-          body = '10 mins left until $timeStr. Are you almost finished? Take a moment to wrap it up!';
-        } else if (dueAt.isAfter(now)) {
-          // Less than 10 mins remaining before completion; schedule at exact due time
-          targetTrigger = dueAt;
-          title = 'Target reached for ${task.title}! ⏱️';
-          body = 'Scheduled completion target was $timeStr. Did you finish?';
-        }
-
-        if (targetTrigger != null) {
-          final int finishId = '${task.uuid}_finish'.hashCode & 0x7FFFFFFF;
+        if (dueAt.isAfter(now.add(const Duration(seconds: 5)))) {
           await _scheduleZonedNotification(
             id: finishId,
-            title: title,
-            body: body,
-            triggerAt: targetTrigger,
+            title: 'Target reached for ${task.title}! 🎯',
+            body: 'Scheduled completion target was $timeStr. Mark it done if completed!',
+            triggerAt: dueAt,
             primaryDetails: notificationDetails,
             fallbackDetails: fallbackDetails,
           );
@@ -152,19 +260,26 @@ class NotificationService {
       androidDetails = AndroidNotificationDetails(
         channelId,
         channelName,
-        channelDescription: 'Dynamic custom sound channel for task: ${task.title}',
+        channelDescription: 'Custom sound alert for ${task.title}',
         sound: customSound,
         playSound: true,
+        enableVibration: true,
         importance: Importance.max,
         priority: Priority.high,
+        visibility: NotificationVisibility.public,
+        fullScreenIntent: true,
       );
     } else {
       androidDetails = const AndroidNotificationDetails(
         'default_reminders_channel',
-        'Standard Reminders',
-        channelDescription: 'Standard todo alerts with default sound',
+        'Task Reminders',
+        channelDescription: 'High-priority task alerts with sound and vibration',
         importance: Importance.max,
         priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+        visibility: NotificationVisibility.public,
+        fullScreenIntent: true,
       );
     }
 
@@ -181,10 +296,14 @@ class NotificationService {
     return const NotificationDetails(
       android: AndroidNotificationDetails(
         'default_reminders_channel',
-        'Standard Reminders',
-        channelDescription: 'Standard todo alerts with default sound',
+        'Task Reminders',
+        channelDescription: 'High-priority task alerts with sound and vibration',
         importance: Importance.max,
         priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+        visibility: NotificationVisibility.public,
+        fullScreenIntent: true,
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,
@@ -202,39 +321,79 @@ class NotificationService {
     required NotificationDetails primaryDetails,
     required NotificationDetails fallbackDetails,
   }) async {
+    final now = DateTime.now();
+
+    // If trigger time is within 5 seconds or in the past, show immediately!
+    if (triggerAt.isBefore(now.add(const Duration(seconds: 5)))) {
+      try {
+        await _notificationsPlugin.show(id, title, body, primaryDetails);
+        return;
+      } catch (_) {
+        await _notificationsPlugin.show(id, title, body, fallbackDetails);
+        return;
+      }
+    }
+
+    tz.TZDateTime scheduledDate;
+    try {
+      scheduledDate = tz.TZDateTime.from(triggerAt, tz.local);
+    } catch (_) {
+      scheduledDate = tz.TZDateTime(
+        tz.local,
+        triggerAt.year,
+        triggerAt.month,
+        triggerAt.day,
+        triggerAt.hour,
+        triggerAt.minute,
+        triggerAt.second,
+      );
+    }
+
+    final tzNow = tz.TZDateTime.now(tz.local);
+    if (!scheduledDate.isAfter(tzNow)) {
+      try {
+        await _notificationsPlugin.show(id, title, body, primaryDetails);
+        return;
+      } catch (_) {
+        await _notificationsPlugin.show(id, title, body, fallbackDetails);
+        return;
+      }
+    }
+
     try {
       await _notificationsPlugin.zonedSchedule(
         id,
         title,
         body,
-        tz.TZDateTime.from(triggerAt, tz.local),
+        scheduledDate,
         primaryDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (_) {
+      // Fallback: guaranteed inexactAllowWhileIdle with standard default details
       try {
         await _notificationsPlugin.zonedSchedule(
           id,
           title,
           body,
-          tz.TZDateTime.from(triggerAt, tz.local),
+          scheduledDate,
           fallbackDetails,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
         );
-      } catch (_) {
-        // Fallback scheduling failure gracefully swallowed
-      }
+      } catch (_) {}
     }
   }
 
   /// Cancels all scheduled reminders for a single task (start, finish, and legacy).
   static Future<void> cancelTaskReminder(String taskUuid) async {
     try {
+      await _notificationsPlugin.cancel('${taskUuid}_pre_start'.hashCode & 0x7FFFFFFF);
       await _notificationsPlugin.cancel('${taskUuid}_start'.hashCode & 0x7FFFFFFF);
+      await _notificationsPlugin.cancel('${taskUuid}_pre_finish'.hashCode & 0x7FFFFFFF);
       await _notificationsPlugin.cancel('${taskUuid}_finish'.hashCode & 0x7FFFFFFF);
       await _notificationsPlugin.cancel(taskUuid.hashCode & 0x7FFFFFFF);
     } catch (_) {
@@ -286,3 +445,5 @@ class NotificationService {
     }
   }
 }
+
+void unawaited(Future<void> future) {}

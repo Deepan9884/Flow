@@ -324,7 +324,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     await _loadTasks();
   }
 
-  Future<void> updateTaskSound(String taskId, String path) async {
+  Future<void> updateTaskSound(String taskId, String? path) async {
     final taskIndex = state.indexWhere((t) => t.uuid == taskId);
     if (taskIndex == -1) return;
 
@@ -338,6 +338,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       await db.tasks.put(updatedTask);
     });
 
+    await _scheduleIfEnabled(updatedTask);
     await _loadTasks();
   }
 

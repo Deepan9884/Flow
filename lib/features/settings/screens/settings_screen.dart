@@ -6,6 +6,7 @@ import '../../../services/media_import_service.dart';
 import '../../tasks/providers/task_provider.dart';
 import '../../categories/providers/category_provider.dart';
 import '../../../services/backup_service.dart';
+import '../../../services/notification_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -63,6 +64,24 @@ class SettingsScreen extends ConsumerWidget {
                   },
                   activeColor: const Color(0xFF0058BE),
                 ),
+              ),
+              _buildSettingItem(
+                Icons.volume_up_rounded,
+                'Test Notification & Sound',
+                theme.isDark,
+                trailing: const Icon(Icons.send_rounded, size: 18, color: Color(0xFF0058BE)),
+                onTap: () async {
+                  await NotificationService.showTestNotification();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('🔔 Test notification sent! Check your notification bar.'),
+                        duration: Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
               ),
               _buildSettingItem(
                 Icons.language_rounded,
