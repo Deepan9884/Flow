@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:isar/isar.dart';
 import 'package:uuid/uuid.dart';
@@ -59,7 +59,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
   /// Schedules [task]'s reminder when the user has notifications enabled.
   /// Never throws: scheduling is always best-effort.
   Future<void> _scheduleIfEnabled(Task task) async {
-    if (task.reminderAt == null || task.isCompleted) return;
+    if (task.isCompleted || (task.reminderAt == null && task.dueDate == null)) return;
     try {
       if (await _notificationsEnabled()) {
         await NotificationService.scheduleTaskReminder(task);
@@ -247,6 +247,53 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     final task = state[taskIndex];
     final updatedTask = task.copyWith(
       reminderAt: reminderAt,
+      updatedAt: DateTime.now(),
+    );
+
+    await _guardedWrite((db) async {
+      await db.tasks.put(updatedTask);
+    });
+
+    await NotificationService.cancelTaskReminder(taskId);
+    await _scheduleIfEnabled(updatedTask);
+
+    await _loadTasks();
+  }
+
+  /// Updates (or clears) a task's due date / completion deadline, rescheduling accordingly.
+  Future<void> updateTaskDueDate(String taskId, DateTime? dueDate) async {
+    final taskIndex = state.indexWhere((t) => t.uuid == taskId);
+    if (taskIndex == -1) return;
+
+    final task = state[taskIndex];
+    final updatedTask = task.copyWith(
+      dueDate: dueDate,
+      updatedAt: DateTime.now(),
+    );
+
+    await _guardedWrite((db) async {
+      await db.tasks.put(updatedTask);
+    });
+
+    await NotificationService.cancelTaskReminder(taskId);
+    await _scheduleIfEnabled(updatedTask);
+
+    await _loadTasks();
+  }
+
+  /// Updates both start time (reminderAt) and completion deadline (dueDate).
+  Future<void> updateTaskTiming(
+    String taskId, {
+    DateTime? startTime,
+    DateTime? dueDate,
+  }) async {
+    final taskIndex = state.indexWhere((t) => t.uuid == taskId);
+    if (taskIndex == -1) return;
+
+    final task = state[taskIndex];
+    final updatedTask = task.copyWith(
+      reminderAt: startTime,
+      dueDate: dueDate,
       updatedAt: DateTime.now(),
     );
 

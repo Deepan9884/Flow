@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../models/task.dart';
 import '../models/recurrence_rule.dart';
@@ -24,10 +24,12 @@ void showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
             if (currentTaskIndex == -1) return const SizedBox.shrink();
             final liveTask = currentTasks[currentTaskIndex];
             final categories = ref.watch(categoryListProvider);
+            final theme = Theme.of(context);
+            final isDark = theme.brightness == Brightness.dark;
 
             return Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
+                color: theme.colorScheme.surface,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
@@ -64,23 +66,64 @@ void showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
                       ),
                     ),
                     if (liveTask.wallpaperPath != null && liveTask.wallpaperPath!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.vertical_align_center_rounded, size: 16, color: Colors.grey),
-                          Expanded(
-                            child: Slider(
-                              value: liveTask.wallpaperOffsetY.clamp(-1.0, 1.0),
-                              min: -1.0,
-                              max: 1.0,
-                              divisions: 20,
-                              label: 'Crop position',
-                              onChanged: (v) {
-                                ref.read(taskListProvider.notifier).updateTaskWallpaperOffset(liveTask.uuid, v);
-                              },
-                            ),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF1F5F9),
+                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                          border: Border.all(
+                            color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.08),
                           ),
-                        ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.crop_rounded, size: 14, color: Color(0xFF0058BE)),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'Crop & Position',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Spacer(),
+                                _detailPresetChip('Top', -1.0, liveTask.wallpaperOffsetY, (v) {
+                                  ref.read(taskListProvider.notifier).updateTaskWallpaperOffset(liveTask.uuid, v);
+                                }, isDark),
+                                const SizedBox(width: 4),
+                                _detailPresetChip('Center', 0.0, liveTask.wallpaperOffsetY, (v) {
+                                  ref.read(taskListProvider.notifier).updateTaskWallpaperOffset(liveTask.uuid, v);
+                                }, isDark),
+                                const SizedBox(width: 4),
+                                _detailPresetChip('Bottom', 1.0, liveTask.wallpaperOffsetY, (v) {
+                                  ref.read(taskListProvider.notifier).updateTaskWallpaperOffset(liveTask.uuid, v);
+                                }, isDark),
+                              ],
+                            ),
+                            SliderTheme(
+                              data: SliderThemeData(
+                                trackHeight: 3.0,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                                activeTrackColor: const Color(0xFF0058BE),
+                                inactiveTrackColor: isDark ? Colors.white24 : Colors.black12,
+                                thumbColor: const Color(0xFF0058BE),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                              ),
+                              child: Slider(
+                                value: liveTask.wallpaperOffsetY.clamp(-1.0, 1.0),
+                                min: -1.0,
+                                max: 1.0,
+                                onChanged: (v) {
+                                  ref.read(taskListProvider.notifier).updateTaskWallpaperOffset(liveTask.uuid, v);
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                     const SizedBox(height: 16),
@@ -190,44 +233,22 @@ void showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
                     const SizedBox(height: 20),
 
                     // Timing Info displays
-                    if (liveTask.dueDate != null) ...[
-                      Row(
-                        children: [
-                          const Icon(Icons.event_note_rounded, size: 16, color: Color(0xFF0058BE)),
-                          const SizedBox(width: 8),
-                          const Text('Due Date: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          Text(formatDate(liveTask.dueDate!), style: const TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    if (liveTask.recurrence != null &&
-                        liveTask.recurrence!.frequency != RecurrenceFrequency.none) ...[
-                      Row(
-                        children: [
-                          const Icon(Icons.repeat_rounded, size: 16, color: Color(0xFF0058BE)),
-                          const SizedBox(width: 8),
-                          const Text('Repeats: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          Text(recurrenceLabel(liveTask.recurrence!.frequency),
-                              style: const TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                    ],
+                    // 1. Start Time (Auto-reminds 5m before)
                     if (liveTask.reminderAt != null) ...[
                       InkWell(
                         onTap: () async {
+                          final currentStart = liveTask.reminderAt ?? DateTime.now();
                           final date = await showDatePicker(
                             context: context,
-                            initialDate: liveTask.reminderAt,
-                            firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                            initialDate: currentStart,
+                            firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                            lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
                           );
                           if (date != null) {
                             if (!context.mounted) return;
                             final time = await showTimePicker(
                               context: context,
-                              initialTime: TimeOfDay.fromDateTime(liveTask.reminderAt!),
+                              initialTime: TimeOfDay.fromDateTime(currentStart),
                             );
                             if (time != null) {
                               await ref.read(taskListProvider.notifier).updateTaskReminder(
@@ -240,15 +261,19 @@ void showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
                         },
                         child: Row(
                           children: [
-                            const Icon(Icons.alarm_on_rounded, size: 16, color: Colors.orange),
+                            const Icon(Icons.play_circle_outline_rounded, size: 16, color: Color(0xFF0058BE)),
                             const SizedBox(width: 8),
-                            const Text('Reminder Scheduled: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            const Text('Start Time: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                             Expanded(
-                              child: Text(formatDate(liveTask.reminderAt!), style: const TextStyle(fontSize: 12)),
+                              child: Text(
+                                '${formatDate(liveTask.reminderAt!)} (Alerts 5m before)',
+                                style: const TextStyle(fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             IconButton(
                               icon: const Icon(Icons.clear_rounded, size: 16),
-                              tooltip: 'Clear reminder',
+                              tooltip: 'Clear start time',
                               onPressed: () async {
                                 await ref.read(taskListProvider.notifier).updateTaskReminder(liveTask.uuid, null);
                                 setDetailState(() {});
@@ -257,15 +282,15 @@ void showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                     ] else ...[
                       InkWell(
                         onTap: () async {
                           final date = await showDatePicker(
                             context: context,
                             initialDate: DateTime.now(),
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                            firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                            lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
                           );
                           if (date != null) {
                             if (!context.mounted) return;
@@ -282,15 +307,121 @@ void showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
                             }
                           }
                         },
-                        child: const Row(
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Icon(Icons.play_circle_outline_rounded, size: 16, color: Colors.grey),
+                              SizedBox(width: 8),
+                              Text('+ Add Start Time (Alerts 5m before)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+
+                    // 2. Completion Time / Due Date (Auto-checks in 10m before)
+                    if (liveTask.dueDate != null) ...[
+                      InkWell(
+                        onTap: () async {
+                          final currentDue = liveTask.dueDate ?? DateTime.now();
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: currentDue,
+                            firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                            lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+                          );
+                          if (date != null) {
+                            if (!context.mounted) return;
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(currentDue),
+                            );
+                            if (time != null) {
+                              await ref.read(taskListProvider.notifier).updateTaskDueDate(
+                                    liveTask.uuid,
+                                    DateTime(date.year, date.month, date.day, time.hour, time.minute),
+                                  );
+                              setDetailState(() {});
+                            }
+                          }
+                        },
+                        child: Row(
                           children: [
-                            Icon(Icons.alarm_add_rounded, size: 16, color: Colors.grey),
-                            SizedBox(width: 8),
-                            Text('Add Reminder', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const Icon(Icons.flag_outlined, size: 16, color: Color(0xFFF59E0B)),
+                            const SizedBox(width: 8),
+                            const Text('Completion Target: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            Expanded(
+                              child: Text(
+                                '${formatDate(liveTask.dueDate!)} (Checks in 10m before)',
+                                style: const TextStyle(fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 16),
+                              tooltip: 'Clear completion time',
+                              onPressed: () async {
+                                await ref.read(taskListProvider.notifier).updateTaskDueDate(liveTask.uuid, null);
+                                setDetailState(() {});
+                              },
+                            ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 6),
+                    ] else ...[
+                      InkWell(
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                            lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+                          );
+                          if (date != null) {
+                            if (!context.mounted) return;
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.now(),
+                            );
+                            if (time != null) {
+                              await ref.read(taskListProvider.notifier).updateTaskDueDate(
+                                    liveTask.uuid,
+                                    DateTime(date.year, date.month, date.day, time.hour, time.minute),
+                                  );
+                              setDetailState(() {});
+                            }
+                          }
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Icon(Icons.flag_outlined, size: 16, color: Colors.grey),
+                              SizedBox(width: 8),
+                              Text('+ Add Completion Time (Checks in 10m before)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+
+                    // Recurrence
+                    if (liveTask.recurrence != null &&
+                        liveTask.recurrence!.frequency != RecurrenceFrequency.none) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.repeat_rounded, size: 16, color: Color(0xFF0058BE)),
+                          const SizedBox(width: 8),
+                          const Text('Repeats: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          Text(recurrenceLabel(liveTask.recurrence!.frequency),
+                              style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
                     ],
 
                     // Danger / Action Row (Modify Media files & Delete)
@@ -340,3 +471,45 @@ void showTaskDetailSheet(BuildContext context, WidgetRef ref, Task task) {
       },
     );
 }
+
+Widget _detailPresetChip(
+  String title,
+  double targetValue,
+  double currentValue,
+  ValueChanged<double> onSelect,
+  bool isDark,
+) {
+  final bool isSelected = (currentValue - targetValue).abs() < 0.15;
+
+  return GestureDetector(
+    onTap: () => onSelect(targetValue),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? const Color(0xFF0058BE)
+            : (isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05)),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isSelected
+              ? const Color(0xFF0058BE)
+              : (isDark ? Colors.white12 : Colors.black12),
+          width: 0.8,
+        ),
+      ),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 10,
+          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          color: isSelected
+              ? Colors.white
+              : (isDark ? Colors.white70 : Colors.black87),
+        ),
+      ),
+    ),
+  );
+}
+

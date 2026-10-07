@@ -7,6 +7,7 @@ class TiltBanner extends StatefulWidget {
   final double bgMultiplier;
   final double fgMultiplier;
   final VoidCallback? onTap;
+  final bool enableTilt;
 
   const TiltBanner({
     super.key,
@@ -16,6 +17,7 @@ class TiltBanner extends StatefulWidget {
     this.bgMultiplier = 0.4,
     this.fgMultiplier = 1.0,
     this.onTap,
+    this.enableTilt = true,
   });
 
   @override
@@ -92,6 +94,20 @@ class _TiltBannerState extends State<TiltBanner> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.enableTilt) {
+      return GestureDetector(
+        onTap: widget.onTap,
+        child: Stack(
+          fit: StackFit.passthrough,
+          children: [
+            if (widget.background != null) widget.background!,
+            if (widget.child != null) widget.child!,
+            if (widget.foreground != null) widget.foreground!,
+          ],
+        ),
+      );
+    }
+
     final Widget cardBody = Stack(
       key: _widgetKey,
       fit: StackFit.passthrough,

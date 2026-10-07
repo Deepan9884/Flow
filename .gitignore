@@ -24,3 +24,5 @@ ios/Pods/
 *.apk
 *.aab
 
+.metadata
+

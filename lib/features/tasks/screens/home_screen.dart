@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../categories/models/category.dart';
@@ -44,8 +44,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return matchesCategory && matchesSearch;
     }).toList();
 
-    // Priority tasks for the top slider (Uncompleted & High/Critical priority)
-    final priorityTasks = tasks.where((t) => !t.isCompleted && t.priority >= 2).toList();
+    // Priority & Custom Banner tasks for top carousel (Uncompleted & (High/Critical priority OR custom wallpaper banner))
+    final featuredTasks = tasks.where((t) =>
+        !t.isCompleted &&
+        (t.priority >= 2 || (t.wallpaperPath != null && t.wallpaperPath!.isNotEmpty && File(t.wallpaperPath!).existsSync()))).toList();
 
     return Scaffold(
       body: Stack(
@@ -158,8 +160,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // Priority Tasks Carousel (Interactive Tilt Banners)
-            if (priorityTasks.isNotEmpty && _searchQuery.isEmpty && _selectedCategoryId == 'all')
+            // Priority & Custom Banner Tasks Carousel (Interactive Tilt Banners)
+            if (featuredTasks.isNotEmpty && _searchQuery.isEmpty && _selectedCategoryId == 'all')
               SliverToBoxAdapter(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,7 +169,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 20),
                       child: Text(
-                        'HIGH PRIORITY REMINDERS',
+                        'FEATURED & PRIORITY TASKS',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -183,15 +185,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: priorityTasks.length,
+                        itemCount: featuredTasks.length,
                         itemBuilder: (context, index) {
-                          final task = priorityTasks[index];
+                          final task = featuredTasks[index];
                           return Container(
                             width: 300,
                             margin: const EdgeInsets.symmetric(horizontal: 4),
                             child: TaskBannerCard(
                               task: task,
                               onTap: () => showTaskDetailSheet(context, ref, task),
+                              onToggle: () => ref.read(taskListProvider.notifier).toggleTask(task.uuid),
                               categoryLabel: resolveCategoryLabel(categories, task),
                             ),
                           );
@@ -349,6 +352,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         if (matchedCat.uuid.isNotEmpty) {
                           bulletColor = Color(matchedCat.colorValue);
                         }
+                      }
+
+                      final hasWallpaper = task.wallpaperPath != null &&
+                          task.wallpaperPath!.isNotEmpty &&
+                          File(task.wallpaperPath!).existsSync();
+
+                      if (hasWallpaper) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 5),
+                          child: TaskBannerCard(
+                            task: task,
+                            enableTilt: false,
+                            onTap: () => showTaskDetailSheet(context, ref, task),
+                            onToggle: () => ref.read(taskListProvider.notifier).toggleTask(task.uuid),
+                            onDelete: () => ref.read(taskListProvider.notifier).deleteTask(task.uuid),
+                            categoryLabel: resolveCategoryLabel(categories, task),
+                          ),
+                        );
                       }
 
                       return Card(

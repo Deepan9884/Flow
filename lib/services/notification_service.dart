@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:intl/intl.dart';
 import '../features/tasks/models/task.dart';
 
 class NotificationService {
@@ -45,39 +46,106 @@ class NotificationService {
     }
   }
 
-  /// Schedules a reminder for a specific task.
-  /// First requests permission, then sets up standard or task-specific sound channels.
+  /// Schedules personalized reminders for a specific task:
+  /// 1. 5 minutes before Start Time (task.reminderAt) to begin the task.
+  /// 2. 10 minutes before Completion Time (task.dueDate) to check if finished.
   static Future<void> scheduleTaskReminder(Task task) async {
     try {
-      if (task.reminderAt == null) return;
+      if (task.isCompleted) return;
+      if (task.reminderAt == null && task.dueDate == null) return;
 
       // 1. Request notification permissions (required runtime permissions on Android 13+ and iOS)
       final permissionStatus = await Permission.notification.request();
       if (!permissionStatus.isGranted) return;
 
-      final scheduleTime = task.reminderAt!;
-      if (scheduleTime.isBefore(DateTime.now())) return;
+      final now = DateTime.now();
 
-      final int notificationId = task.uuid.hashCode;
-    
-    // Check if the app is active in the foreground - if so, play via just_audio directly.
-    // In a real app we'd query AppLifecycleState, but here we provide playForegroundSound
-    // as a public helper so the active app handler can trigger it.
+      // 2. Prepare Android & iOS Notification Details
+      final String? stagedSound = (task.soundPath != null && task.soundPath!.isNotEmpty)
+          ? await _stageSoundForDelivery(task.soundPath!)
+          : null;
 
+      final NotificationDetails notificationDetails = _buildNotificationDetails(task, stagedSound);
+      final NotificationDetails fallbackDetails = _buildFallbackDetails();
+
+      // --- Notification 1: 5 minutes before Start Time ---
+      if (task.reminderAt != null) {
+        final startAt = task.reminderAt!;
+        final notifyStartAt = startAt.subtract(const Duration(minutes: 5));
+        
+        DateTime? targetTrigger;
+        String title = '';
+        String body = '';
+        final timeStr = DateFormat('h:mm a').format(startAt.toLocal());
+
+        if (notifyStartAt.isAfter(now)) {
+          targetTrigger = notifyStartAt;
+          title = 'Ready for ${task.title}? 🚀';
+          body = 'Starting in 5 mins ($timeStr). Let\'s get focused and crush this!';
+        } else if (startAt.isAfter(now)) {
+          // Less than 5 mins remaining before start; schedule at exact start time
+          targetTrigger = startAt;
+          title = 'Time for ${task.title}! 🚀';
+          body = 'Scheduled to begin now ($timeStr). Let\'s dive in!';
+        }
+
+        if (targetTrigger != null) {
+          final int startId = '${task.uuid}_start'.hashCode & 0x7FFFFFFF;
+          await _scheduleZonedNotification(
+            id: startId,
+            title: title,
+            body: body,
+            triggerAt: targetTrigger,
+            primaryDetails: notificationDetails,
+            fallbackDetails: fallbackDetails,
+          );
+        }
+      }
+
+      // --- Notification 2: 10 minutes before Completion Time ---
+      if (task.dueDate != null) {
+        final dueAt = task.dueDate!;
+        final notifyDueAt = dueAt.subtract(const Duration(minutes: 10));
+
+        DateTime? targetTrigger;
+        String title = '';
+        String body = '';
+        final timeStr = DateFormat('h:mm a').format(dueAt.toLocal());
+
+        if (notifyDueAt.isAfter(now)) {
+          targetTrigger = notifyDueAt;
+          title = 'Checking in on ${task.title}! ⏱️';
+          body = '10 mins left until $timeStr. Are you almost finished? Take a moment to wrap it up!';
+        } else if (dueAt.isAfter(now)) {
+          // Less than 10 mins remaining before completion; schedule at exact due time
+          targetTrigger = dueAt;
+          title = 'Target reached for ${task.title}! ⏱️';
+          body = 'Scheduled completion target was $timeStr. Did you finish?';
+        }
+
+        if (targetTrigger != null) {
+          final int finishId = '${task.uuid}_finish'.hashCode & 0x7FFFFFFF;
+          await _scheduleZonedNotification(
+            id: finishId,
+            title: title,
+            body: body,
+            triggerAt: targetTrigger,
+            primaryDetails: notificationDetails,
+            fallbackDetails: fallbackDetails,
+          );
+        }
+      }
+    } catch (_) {
+      // Scheduling is best-effort: permissions, alarms, or staging issues
+      // must never crash the app. The task itself is already persisted.
+    }
+  }
+
+  static NotificationDetails _buildNotificationDetails(Task task, String? stagedSound) {
     AndroidNotificationDetails androidDetails;
-
-    // 2. Android Task-specific Custom Sound configuration
-    final String? stagedSound = (task.soundPath != null && task.soundPath!.isNotEmpty)
-        ? await _stageSoundForDelivery(task.soundPath!)
-        : null;
     if (stagedSound != null) {
-      // Channels are immutable. If the sound changes, we generate a new channel ID.
-      // We derive the channel ID from the task ID and sound path hash.
       final String channelId = 'task_channel_${task.uuid}_${task.soundPath.hashCode}';
       final String channelName = 'Task Reminder: ${task.title}';
-
-      // The staged copy lives under the cache dir, which file_paths.xml
-      // exposes as cache-path name="app_cache" — hence this exact URI form.
       final UriAndroidNotificationSound customSound =
           UriAndroidNotificationSound('content://flow_todo_fileprovider/app_cache/sounds/$stagedSound');
 
@@ -91,7 +159,6 @@ class NotificationService {
         priority: Priority.high,
       );
     } else {
-      // Default channel
       androidDetails = const AndroidNotificationDetails(
         'default_reminders_channel',
         'Standard Reminders',
@@ -101,66 +168,75 @@ class NotificationService {
       );
     }
 
-    // 3. iOS Configuration - custom sound paths at runtime are not supported by iOS background notifications,
-    // so we fall back to standard sounds.
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
 
-    final NotificationDetails notificationDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+    return NotificationDetails(android: androidDetails, iOS: iosDetails);
+  }
 
-    // 4. Exact zoned scheduling trigger
+  static NotificationDetails _buildFallbackDetails() {
+    return const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'default_reminders_channel',
+        'Standard Reminders',
+        channelDescription: 'Standard todo alerts with default sound',
+        importance: Importance.max,
+        priority: Priority.high,
+      ),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
+  }
+
+  static Future<void> _scheduleZonedNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime triggerAt,
+    required NotificationDetails primaryDetails,
+    required NotificationDetails fallbackDetails,
+  }) async {
     try {
       await _notificationsPlugin.zonedSchedule(
-        notificationId,
-        'Task Reminder',
-        task.title,
-        tz.TZDateTime.from(scheduleTime, tz.local),
-        notificationDetails,
+        id,
+        title,
+        body,
+        tz.TZDateTime.from(triggerAt, tz.local),
+        primaryDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (_) {
-      // Custom sound URIs can fail to resolve (e.g. FileProvider scope).
-      // Fall back to the default channel so the reminder still fires.
-      const fallbackDetails = NotificationDetails(
-        android: AndroidNotificationDetails(
-          'default_reminders_channel',
-          'Standard Reminders',
-          channelDescription: 'Standard todo alerts with default sound',
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-        iOS: iosDetails,
-      );
-      await _notificationsPlugin.zonedSchedule(
-        notificationId,
-        'Task Reminder',
-        task.title,
-        tz.TZDateTime.from(scheduleTime, tz.local),
-        fallbackDetails,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
-    }
-    } catch (_) {
-      // Scheduling is best-effort: permission denied, exact-alarm blocked,
-      // or plugin not ready must never crash the app. The reminder data
-      // itself is already persisted in Isar.
+      try {
+        await _notificationsPlugin.zonedSchedule(
+          id,
+          title,
+          body,
+          tz.TZDateTime.from(triggerAt, tz.local),
+          fallbackDetails,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } catch (_) {
+        // Fallback scheduling failure gracefully swallowed
+      }
     }
   }
 
-  /// Cancels the scheduled reminder for a single task, if any.
+  /// Cancels all scheduled reminders for a single task (start, finish, and legacy).
   static Future<void> cancelTaskReminder(String taskUuid) async {
     try {
-      await _notificationsPlugin.cancel(taskUuid.hashCode);
+      await _notificationsPlugin.cancel('${taskUuid}_start'.hashCode & 0x7FFFFFFF);
+      await _notificationsPlugin.cancel('${taskUuid}_finish'.hashCode & 0x7FFFFFFF);
+      await _notificationsPlugin.cancel(taskUuid.hashCode & 0x7FFFFFFF);
     } catch (_) {
       // Cancellation is best-effort; a missing id is not an error.
     }

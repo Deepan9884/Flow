@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../features/tasks/models/task.dart';
 import '../features/categories/models/category.dart';
+import '../features/tasks/utils/task_ui_helpers.dart';
 import 'tilt_banner.dart';
 
 /// Resolves a human-readable category label for a task's first category id.
@@ -23,6 +24,7 @@ class TaskBannerCard extends StatefulWidget {
   final VoidCallback? onToggle;
   final VoidCallback? onDelete;
   final String? categoryLabel;
+  final bool enableTilt;
 
   const TaskBannerCard({
     super.key,
@@ -31,6 +33,7 @@ class TaskBannerCard extends StatefulWidget {
     this.onToggle,
     this.onDelete,
     this.categoryLabel,
+    this.enableTilt = true,
   });
 
   @override
@@ -166,22 +169,43 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  widget.task.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(0, 1),
-                        blurRadius: 4.0,
-                        color: Colors.black54,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.task.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: widget.task.isCompleted ? Colors.white60 : Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        decoration: widget.task.isCompleted ? TextDecoration.lineThrough : null,
+                        shadows: const [
+                          Shadow(
+                            offset: Offset(0, 1),
+                            blurRadius: 4.0,
+                            color: Colors.black54,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (widget.task.notes != null && widget.task.notes!.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        widget.task.notes!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.85),
+                          fontSize: 11.5,
+                          shadows: const [
+                            Shadow(offset: Offset(0, 1), blurRadius: 3.0, color: Colors.black54),
+                          ],
+                        ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
@@ -243,37 +267,69 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              if (widget.task.dueDate != null)
-                Row(
-                  children: [
+              Row(
+                children: [
+                  if (widget.task.dueDate != null) ...[
                     const Icon(Icons.access_time_filled_rounded, size: 12, color: Colors.white70),
                     const SizedBox(width: 4),
                     Text(
-                      widget.task.dueDate!.toLocal().toString().substring(0, 16),
+                      formatDate(widget.task.dueDate!),
+                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (widget.task.subtasks.isNotEmpty) ...[
+                    const Icon(Icons.playlist_add_check_rounded, size: 14, color: Colors.white70),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${widget.task.subtasks.where((s) => s.isDone).length}/${widget.task.subtasks.length}',
                       style: const TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                   ],
-                )
-              else
-                const SizedBox.shrink(),
-              if (widget.task.categoryIds.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.18),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white24, width: 0.5),
-                  ),
-                  child: Text(
-                    (widget.categoryLabel ?? widget.task.categoryIds.first).toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                ],
+              ),
+              Row(
+                children: [
+                  // Priority Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: priorityBgColor(widget.task.priority).withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      priorityLabel(widget.task.priority),
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: priorityTextColor(widget.task.priority),
+                        letterSpacing: 0.3,
+                      ),
                     ),
                   ),
-                ),
+                  if (widget.task.categoryIds.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white24, width: 0.5),
+                      ),
+                      child: Text(
+                        (widget.categoryLabel ?? widget.task.categoryIds.first).toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         ],
@@ -282,6 +338,7 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
 
     return TiltBanner(
       onTap: widget.onTap,
+      enableTilt: widget.enableTilt,
       background: background,
       foreground: foreground,
     );
