@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../tasks/providers/task_provider.dart';
 import '../../../services/backup_service.dart';
+import '../widgets/productivity_charts_sheet.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -80,9 +81,163 @@ class ProfileScreen extends ConsumerWidget {
               total == 0 ? 'Add your first task to get started' : '${(rate * 100).round()}% complete',
               style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: Colors.grey),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            // Productivity Analytics Glance Card
+            InkWell(
+              onTap: () => showProductivityChartsSheet(context, tasks, isDark),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFF0058BE).withOpacity(isDark ? 0.35 : 0.2),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0058BE).withOpacity(0.08),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0058BE).withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.insights_rounded, color: Color(0xFF0058BE), size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Productivity Analytics',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF191C1D),
+                                ),
+                              ),
+                              Text(
+                                'Charts, weekly activity & performance',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 11.5,
+                                  color: isDark ? Colors.white60 : Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF0058BE)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  '$completed',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF10B981),
+                                  ),
+                                ),
+                                const Text(
+                                  'Done',
+                                  style: TextStyle(fontFamily: 'Inter', fontSize: 10.5, color: Color(0xFF10B981)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0058BE).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  '$open',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0058BE),
+                                  ),
+                                ),
+                                const Text(
+                                  'In Progress',
+                                  style: TextStyle(fontFamily: 'Inter', fontSize: 10.5, color: Color(0xFF0058BE)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  '${(rate * 100).round()}%',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.purple,
+                                  ),
+                                ),
+                                const Text(
+                                  'Rate',
+                                  style: TextStyle(fontFamily: 'Inter', fontSize: 10.5, color: Colors.purple),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
             _buildProfileMenu(Icons.bar_chart_rounded, 'Productivity Stats', isDark,
-                () => _showStatsSheet(context, isDark, total, open, completed, dueToday, rate)),
+                () => showProductivityChartsSheet(context, tasks, isDark)),
             _buildProfileMenu(Icons.workspace_premium_rounded, 'Go Premium', isDark,
                 () => _showInfo(context, 'Flow Premium', 'Flow is free while in development. Premium workspaces arrive with cloud sync.')),
             _buildProfileMenu(Icons.cloud_sync_rounded, 'Backup & Sync', isDark, () async {
@@ -127,81 +282,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showStatsSheet(
-    BuildContext context,
-    bool isDark,
-    int total,
-    int open,
-    int completed,
-    int dueToday,
-    double rate,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration:
-                    BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Productivity Stats',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : const Color(0xFF191C1D),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _statRow('Total tasks', '$total', isDark),
-            _statRow('Open', '$open', isDark),
-            _statRow('Completed', '$completed', isDark),
-            _statRow('Due today', '$dueToday', isDark),
-            _statRow('Completion rate', '${(rate * 100).round()}%', isDark),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _statRow(String label, String value, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: Colors.grey)),
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : const Color(0xFF191C1D),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildProfileMenu(IconData icon, String title, bool isDark, VoidCallback onTap) {
     return Padding(

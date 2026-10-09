@@ -5,7 +5,6 @@ import '../../categories/providers/category_provider.dart';
 import '../providers/task_provider.dart';
 import '../../../widgets/wallpaper_picker_tile.dart';
 import 'sound_selection_modal.dart';
-import '../../../services/notification_service.dart';
 import 'package:intl/intl.dart';
 import '../utils/task_ui_helpers.dart';
 
@@ -26,6 +25,7 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
 
     int selectedPriority = initialPriority;
     RecurrenceFrequency selectedFrequency = RecurrenceFrequency.none;
+    List<int> selectedWeekdays = [DateTime.now().weekday];
     String? selectedCategoryId;
     String? pickedWallpaperPath;
     double pickedWallpaperOffsetY = 0.0;
@@ -51,23 +51,30 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                   final cur = DateTime.now();
                   setSheetState(() {
                     selectedPreset = preset;
-                    selectedDate = cur;
-                    hasSelectedDate = true;
-                    if (preset == '2m') {
-                      selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 2)));
-                      selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 15)));
-                    } else if (preset == '5m') {
-                      selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 5)));
-                      selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 35)));
-                    } else if (preset == '15m') {
-                      selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 15)));
-                      selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 45)));
-                    } else if (preset == '1h') {
-                      selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(hours: 1)));
-                      selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(hours: 2)));
-                    } else if (preset == 'none') {
+                    if (preset == 'leisure') {
+                      hasSelectedDate = false;
                       selectedStartTime = null;
                       selectedCompletionTime = null;
+                      selectedFrequency = RecurrenceFrequency.none;
+                    } else {
+                      selectedDate = cur;
+                      hasSelectedDate = true;
+                      if (preset == '2m') {
+                        selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 2)));
+                        selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 15)));
+                      } else if (preset == '5m') {
+                        selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 5)));
+                        selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 35)));
+                      } else if (preset == '15m') {
+                        selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 15)));
+                        selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(minutes: 45)));
+                      } else if (preset == '1h') {
+                        selectedStartTime = TimeOfDay.fromDateTime(cur.add(const Duration(hours: 1)));
+                        selectedCompletionTime = TimeOfDay.fromDateTime(cur.add(const Duration(hours: 2)));
+                      } else if (preset == 'none') {
+                        selectedStartTime = null;
+                        selectedCompletionTime = null;
+                      }
                     }
                   });
                 }
@@ -316,42 +323,26 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                         ],
 
                     // Schedule & Reminders Section Header
-                    Row(
+                    const Row(
                       children: [
-                        const Icon(Icons.notifications_active_rounded, size: 16, color: Color(0xFF0058BE)),
-                        const SizedBox(width: 6),
-                        const Text(
+                        Icon(Icons.notifications_active_rounded, size: 16, color: Color(0xFF0058BE)),
+                        SizedBox(width: 6),
+                        Text(
                           'Schedule & Reminders',
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0058BE).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'Auto 5m/10m Alerts',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0058BE),
-                            ),
-                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
 
-                    // Quick Preset Chips for Reminders
+                    // Quick Preset Chips for Reminders & Leisure
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          _buildPresetChip('⚡ In 2m (Test)', '2m', selectedPreset, () => applyPreset('2m'), isDark),
+                          _buildPresetChip('At Leisure', 'leisure', selectedPreset, () => applyPreset('leisure'), isDark, icon: Icons.spa_rounded),
                           const SizedBox(width: 6),
-                          _buildPresetChip('🔔 In 5m (Default)', '5m', selectedPreset, () => applyPreset('5m'), isDark),
+                          _buildPresetChip('In 5m', '5m', selectedPreset, () => applyPreset('5m'), isDark),
                           const SizedBox(width: 6),
                           _buildPresetChip('In 15m', '15m', selectedPreset, () => applyPreset('15m'), isDark),
                           const SizedBox(width: 6),
@@ -365,59 +356,14 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-
-                    // Active reminder status card
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: selectedStartTime != null
-                            ? const Color(0xFF0058BE).withOpacity(0.06)
-                            : (isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03)),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: selectedStartTime != null
-                              ? const Color(0xFF0058BE).withOpacity(0.25)
-                              : Colors.grey.withOpacity(0.2),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            selectedStartTime != null
-                                ? Icons.notification_important_rounded
-                                : Icons.notifications_off_outlined,
-                            size: 16,
-                            color: selectedStartTime != null
-                                ? const Color(0xFF0058BE)
-                                : Colors.grey,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              selectedStartTime != null
-                                  ? 'Alerts 5m before start (${selectedStartTime!.format(context)}) + 10m before finish (${selectedCompletionTime?.format(context) ?? "N/A"})'
-                                  : 'No notification will be scheduled for this task',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: selectedStartTime != null
-                                    ? (isDark ? Colors.white70 : const Color(0xFF0058BE))
-                                    : Colors.grey,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
 
                     // 1. Task Date Selector Card
                     InkWell(
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
-                          initialDate: selectedDate,
+                          initialDate: hasSelectedDate ? selectedDate : DateTime.now(),
                           firstDate: DateTime.now().subtract(const Duration(days: 365)),
                           lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
                         );
@@ -425,7 +371,9 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                           setSheetState(() {
                             selectedDate = picked;
                             hasSelectedDate = true;
-                            selectedPreset = 'custom';
+                            if (selectedPreset == 'leisure') {
+                              selectedPreset = 'custom';
+                            }
                           });
                         }
                       },
@@ -436,33 +384,88 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                           border: Border.all(
                             color: hasSelectedDate
                                 ? const Color(0xFF0058BE).withOpacity(0.5)
-                                : Colors.grey.withOpacity(0.25),
+                                : (isDark ? const Color(0xFF059669).withOpacity(0.4) : const Color(0xFFA7F3D0)),
                           ),
                           borderRadius: BorderRadius.circular(10),
                           color: hasSelectedDate
                               ? const Color(0xFF0058BE).withOpacity(0.04)
-                              : null,
+                              : (isDark ? const Color(0xFF065F46).withOpacity(0.18) : const Color(0xFFECFDF5)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.calendar_month_rounded, size: 18, color: Color(0xFF0058BE)),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Task Date',
-                                  style: TextStyle(fontSize: 10.5, color: Colors.grey, fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(height: 1),
-                                Text(
-                                  _formatDateDisplay(selectedDate, hasSelectedDate),
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                                ),
-                              ],
+                            Icon(
+                              hasSelectedDate ? Icons.calendar_month_rounded : Icons.spa_rounded,
+                              size: 18,
+                              color: hasSelectedDate
+                                  ? const Color(0xFF0058BE)
+                                  : (isDark ? const Color(0xFF34D399) : const Color(0xFF059669)),
                             ),
-                            const Spacer(),
-                            Icon(Icons.edit_calendar_rounded, size: 16, color: Colors.grey[500]),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    hasSelectedDate ? 'Task Date' : 'At Leisure Mode',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: hasSelectedDate ? Colors.grey : (isDark ? const Color(0xFF34D399) : const Color(0xFF047857)),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    _formatDateDisplay(selectedDate, hasSelectedDate),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: hasSelectedDate
+                                          ? null
+                                          : (isDark ? const Color(0xFF6EE7B7) : const Color(0xFF065F46)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (hasSelectedDate)
+                              InkWell(
+                                onTap: () {
+                                  setSheetState(() {
+                                    hasSelectedDate = false;
+                                    selectedStartTime = null;
+                                    selectedCompletionTime = null;
+                                    selectedPreset = 'leisure';
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(20),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Clear',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark ? Colors.white60 : Colors.black54,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Icon(Icons.close_rounded, size: 14, color: Colors.grey[500]),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else
+                              Text(
+                                '+ Set Date',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -484,7 +487,20 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                               if (time != null) {
                                 setSheetState(() {
                                   selectedStartTime = time;
+                                  hasSelectedDate = true;
                                   selectedPreset = 'custom';
+                                  // If completion time is now before or equal to start time, auto-advance it
+                                  if (selectedCompletionTime != null) {
+                                    final startM = time.hour * 60 + time.minute;
+                                    final compM = selectedCompletionTime!.hour * 60 + selectedCompletionTime!.minute;
+                                    if (compM <= startM) {
+                                      final newCompM = startM + 30;
+                                      selectedCompletionTime = TimeOfDay(
+                                        hour: (newCompM ~/ 60) % 24,
+                                        minute: newCompM % 60,
+                                      );
+                                    }
+                                  }
                                 });
                               }
                             },
@@ -530,7 +546,7 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                   Text(
                                     selectedStartTime != null
                                         ? selectedStartTime!.format(context)
-                                        : 'Set Start',
+                                        : (!hasSelectedDate ? 'None (Leisure)' : 'Set Start'),
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: selectedStartTime != null ? FontWeight.bold : FontWeight.normal,
@@ -538,9 +554,9 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                     ),
                                   ),
                                   const SizedBox(height: 2),
-                                  const Text(
-                                    'Reminds 5m before',
-                                    style: TextStyle(fontSize: 9.5, color: Colors.grey),
+                                  Text(
+                                    selectedStartTime != null ? 'Reminds 5m before' : 'Optional timer',
+                                    style: const TextStyle(fontSize: 9.5, color: Colors.grey),
                                   ),
                                 ],
                               ),
@@ -555,11 +571,36 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                             onTap: () async {
                               final time = await showTimePicker(
                                 context: context,
-                                initialTime: selectedCompletionTime ?? TimeOfDay.now(),
+                                initialTime: selectedCompletionTime ??
+                                    (selectedStartTime != null
+                                        ? TimeOfDay(
+                                            hour: (selectedStartTime!.hour + 1) % 24,
+                                            minute: selectedStartTime!.minute,
+                                          )
+                                        : TimeOfDay.now()),
                               );
                               if (time != null) {
+                                if (selectedStartTime != null) {
+                                  final startM = selectedStartTime!.hour * 60 + selectedStartTime!.minute;
+                                  final compM = time.hour * 60 + time.minute;
+                                  if (compM <= startM) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Completion time must be after start time (${selectedStartTime!.format(context)}).',
+                                          ),
+                                          backgroundColor: Colors.redAccent,
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+                                }
                                 setSheetState(() {
                                   selectedCompletionTime = time;
+                                  hasSelectedDate = true;
                                   selectedPreset = 'custom';
                                 });
                               }
@@ -606,7 +647,7 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                   Text(
                                     selectedCompletionTime != null
                                         ? selectedCompletionTime!.format(context)
-                                        : 'Set Finish',
+                                        : (!hasSelectedDate ? 'None (No Limit)' : 'Set Finish'),
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: selectedCompletionTime != null ? FontWeight.bold : FontWeight.normal,
@@ -614,9 +655,9 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                     ),
                                   ),
                                   const SizedBox(height: 2),
-                                  const Text(
-                                    'Checks in 10m before',
-                                    style: TextStyle(fontSize: 9.5, color: Colors.grey),
+                                  Text(
+                                    selectedCompletionTime != null ? 'Checks in 10m before' : 'Optional deadline',
+                                    style: const TextStyle(fontSize: 9.5, color: Colors.grey),
                                   ),
                                 ],
                               ),
@@ -627,61 +668,202 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                     ),
                     const SizedBox(height: 18),
 
-                    // Recurrence selector
-                    Text(
-                      'Repeat',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white60 : Colors.grey[700],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<RecurrenceFrequency>(
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: isDark
-                            ? const Color(0xFF1E1E1E)
-                            : const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: borderColor),
+                    // Recurrence customization section
+                    Row(
+                      children: [
+                        const Icon(Icons.repeat_rounded, size: 16, color: Color(0xFF0058BE)),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Repeat',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: borderColor),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                              color: focusedBorderColor, width: 1.5),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                      ),
-                      dropdownColor:
-                          isDark ? const Color(0xFF242424) : Colors.white,
-                      value: selectedFrequency,
-                      items: RecurrenceFrequency.values.map((f) {
-                        return DropdownMenuItem<RecurrenceFrequency>(
-                          value: f,
-                          child: Text(
-                            recurrenceLabel(f),
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 13,
-                              color: theme.colorScheme.onSurface,
+                        const Spacer(),
+                        if (selectedFrequency != RecurrenceFrequency.none)
+                          Text(
+                            selectedFrequency == RecurrenceFrequency.weekly
+                                ? _formatWeekdaySummary(selectedWeekdays)
+                                : recurrenceLabel(selectedFrequency),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF0058BE),
                             ),
                           ),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setSheetState(() => selectedFrequency = val);
-                        }
-                      },
+                      ],
                     ),
+                    const SizedBox(height: 10),
+
+                    // Frequency selector pills: None, Daily, Weekly, Monthly
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFrequencyChip('None', RecurrenceFrequency.none, selectedFrequency, () {
+                            setSheetState(() => selectedFrequency = RecurrenceFrequency.none);
+                          }, isDark),
+                          const SizedBox(width: 6),
+                          _buildFrequencyChip('Daily', RecurrenceFrequency.daily, selectedFrequency, () {
+                            setSheetState(() => selectedFrequency = RecurrenceFrequency.daily);
+                          }, isDark),
+                          const SizedBox(width: 6),
+                          _buildFrequencyChip('Weekly', RecurrenceFrequency.weekly, selectedFrequency, () {
+                            setSheetState(() {
+                              selectedFrequency = RecurrenceFrequency.weekly;
+                              if (selectedWeekdays.isEmpty) {
+                                selectedWeekdays = [selectedDate.weekday];
+                              }
+                            });
+                          }, isDark),
+                          const SizedBox(width: 6),
+                          _buildFrequencyChip('Monthly', RecurrenceFrequency.monthly, selectedFrequency, () {
+                            setSheetState(() => selectedFrequency = RecurrenceFrequency.monthly);
+                          }, isDark),
+                        ],
+                      ),
+                    ),
+
+                    // If Weekly selected: Show Mon-Sun interactive multi-selection
+                    if (selectedFrequency == RecurrenceFrequency.weekly) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Choose Days of the Week',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                  ),
+                                ),
+                                Text(
+                                  '${selectedWeekdays.length} selected',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF0058BE),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            // 7 day circular chips: Mon..Sun
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: List.generate(7, (index) {
+                                final dayNum = index + 1; // 1 = Mon .. 7 = Sun
+                                final isSelected = selectedWeekdays.contains(dayNum);
+                                const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                                return GestureDetector(
+                                  onTap: () {
+                                    setSheetState(() {
+                                      if (isSelected) {
+                                        if (selectedWeekdays.length > 1) {
+                                          selectedWeekdays.remove(dayNum);
+                                        }
+                                      } else {
+                                        selectedWeekdays.add(dayNum);
+                                        selectedWeekdays.sort();
+                                      }
+                                    });
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? const Color(0xFF0058BE)
+                                          : (isDark ? const Color(0xFF2A2A2A) : Colors.white),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? const Color(0xFF0058BE)
+                                            : (isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: isSelected
+                                          ? [
+                                              BoxShadow(
+                                                color: const Color(0xFF0058BE).withOpacity(0.3),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              )
+                                            ]
+                                          : null,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      dayNames[index],
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Multi-select presets: Weekdays | Weekends | Every Day
+                            Row(
+                              children: [
+                                _buildWeekdayPresetPill(
+                                  'Weekdays',
+                                  () {
+                                    setSheetState(() => selectedWeekdays = [1, 2, 3, 4, 5]);
+                                  },
+                                  selectedWeekdays.length == 5 &&
+                                      !selectedWeekdays.contains(6) &&
+                                      !selectedWeekdays.contains(7),
+                                  isDark,
+                                ),
+                                const SizedBox(width: 6),
+                                _buildWeekdayPresetPill(
+                                  'Weekends',
+                                  () {
+                                    setSheetState(() => selectedWeekdays = [6, 7]);
+                                  },
+                                  selectedWeekdays.length == 2 &&
+                                      selectedWeekdays.contains(6) &&
+                                      selectedWeekdays.contains(7),
+                                  isDark,
+                                ),
+                                const SizedBox(width: 6),
+                                _buildWeekdayPresetPill(
+                                  'All 7 Days',
+                                  () {
+                                    setSheetState(() => selectedWeekdays = [1, 2, 3, 4, 5, 6, 7]);
+                                  },
+                                  selectedWeekdays.length == 7,
+                                  isDark,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 18),
 
                     // Custom Wallpaper Import with Live Overlay Preview & Cropping
@@ -769,7 +951,7 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                     Text(
                                       pickedSoundPath != null
                                           ? 'Custom Audio: ${pickedSoundPath!.split("/").last.split("\\").last}'
-                                          : 'Default System Chime • Tap to test or change',
+                                          : 'Default System Chime • Tap to change',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
@@ -781,55 +963,6 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                   ],
                                 ),
                               ),
-                              // Instant Quick Test Button
-                              InkWell(
-                                onTap: () async {
-                                  await NotificationService.showTestNotification(
-                                    customSoundPath: pickedSoundPath,
-                                  );
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Row(
-                                          children: [
-                                            Icon(Icons.volume_up_rounded, color: Colors.white, size: 16),
-                                            SizedBox(width: 8),
-                                            Text('🔔 Test alert sent! Check your notification bar.'),
-                                          ],
-                                        ),
-                                        duration: Duration(seconds: 2),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  }
-                                },
-                                borderRadius: BorderRadius.circular(8),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.green.withOpacity(0.35)),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.volume_up_rounded, size: 13, color: Colors.green),
-                                      SizedBox(width: 3),
-                                      Text(
-                                        'Test',
-                                        style: TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
                               Icon(
                                 Icons.chevron_right_rounded,
                                 color: isDark ? Colors.white38 : Colors.black26,
@@ -851,7 +984,7 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                           final title = titleController.text.trim();
                           if (title.isNotEmpty) {
                             DateTime? finalStartTime;
-                            if (selectedStartTime != null) {
+                            if (hasSelectedDate && selectedStartTime != null) {
                               finalStartTime = DateTime(
                                 selectedDate.year,
                                 selectedDate.month,
@@ -862,22 +995,36 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                             }
 
                             DateTime? finalDueDate;
-                            if (selectedCompletionTime != null) {
-                              finalDueDate = DateTime(
-                                selectedDate.year,
-                                selectedDate.month,
-                                selectedDate.day,
-                                selectedCompletionTime!.hour,
-                                selectedCompletionTime!.minute,
+                            if (hasSelectedDate) {
+                              if (selectedCompletionTime != null) {
+                                finalDueDate = DateTime(
+                                  selectedDate.year,
+                                  selectedDate.month,
+                                  selectedDate.day,
+                                  selectedCompletionTime!.hour,
+                                  selectedCompletionTime!.minute,
+                                );
+                              } else {
+                                finalDueDate = DateTime(
+                                  selectedDate.year,
+                                  selectedDate.month,
+                                  selectedDate.day,
+                                  23,
+                                  59,
+                                );
+                              }
+                            }
+
+                            // Safeguard: Ensure completion deadline is not earlier than start time
+                            if (finalStartTime != null && finalDueDate != null && finalDueDate.isBefore(finalStartTime)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Completion time cannot be earlier than start time.'),
+                                  backgroundColor: Colors.redAccent,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
                               );
-                            } else if (hasSelectedDate) {
-                              finalDueDate = DateTime(
-                                selectedDate.year,
-                                selectedDate.month,
-                                selectedDate.day,
-                                23,
-                                59,
-                              );
+                              return;
                             }
 
                             ref.read(taskListProvider.notifier).addTask(
@@ -892,7 +1039,9 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                   soundPath: pickedSoundPath,
                                   recurrence: selectedFrequency == RecurrenceFrequency.none
                                       ? null
-                                      : RecurrenceRule(frequency: selectedFrequency),
+                                      : (selectedFrequency == RecurrenceFrequency.weekly
+                                          ? RecurrenceRuleExtension.weeklyWithDays(selectedWeekdays)
+                                          : RecurrenceRule(frequency: selectedFrequency)),
                                 );
 
                             Navigator.pop(context);
@@ -906,12 +1055,30 @@ void showAddTaskSheet(BuildContext context, WidgetRef ref, {int initialPriority 
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
-                                          'Task added! 🔔 Reminder set for ${DateFormat('h:mm a').format(finalStartTime)}',
+                                          'Task added! Reminder set for ${DateFormat('h:mm a').format(finalStartTime)}',
                                         ),
                                       ),
                                     ],
                                   ),
                                   duration: const Duration(seconds: 3),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            } else if (!hasSelectedDate) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Row(
+                                    children: [
+                                      Icon(Icons.spa_rounded, color: Colors.white, size: 18),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'At Leisure task added! Complete whenever you are free.',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  duration: Duration(seconds: 3),
                                   behavior: SnackBarBehavior.floating,
                                 ),
                               );
@@ -953,10 +1120,13 @@ Widget _buildPresetChip(
   String value,
   String currentPreset,
   VoidCallback onTap,
-  bool isDark,
-) {
+  bool isDark, {
+  IconData? icon,
+}) {
   final isSelected = currentPreset == value;
-  const primaryColor = Color(0xFF0058BE);
+  final primaryColor = value == 'leisure'
+      ? (isDark ? const Color(0xFF10B981) : const Color(0xFF059669))
+      : const Color(0xFF0058BE);
 
   return InkWell(
     onTap: onTap,
@@ -967,28 +1137,56 @@ Widget _buildPresetChip(
       decoration: BoxDecoration(
         color: isSelected
             ? primaryColor
-            : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF1F5F9)),
+            : (value == 'leisure'
+                ? (isDark ? const Color(0xFF065F46).withOpacity(0.25) : const Color(0xFFECFDF5))
+                : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF1F5F9))),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isSelected ? primaryColor : (isDark ? Colors.white12 : Colors.black12),
+          color: isSelected
+              ? primaryColor
+              : (value == 'leisure'
+                  ? (isDark ? const Color(0xFF059669).withOpacity(0.4) : const Color(0xFFA7F3D0))
+                  : (isDark ? Colors.white12 : Colors.black12)),
         ),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 11.5,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          color: isSelected
-              ? Colors.white
-              : (isDark ? Colors.white70 : Colors.black87),
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(
+              icon,
+              size: 13,
+              color: isSelected
+                  ? Colors.white
+                  : (value == 'leisure'
+                      ? (isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+                      : (isDark ? Colors.white70 : Colors.black87)),
+            ),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 11.5,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected
+                  ? Colors.white
+                  : (value == 'leisure'
+                      ? (isDark ? const Color(0xFF34D399) : const Color(0xFF065F46))
+                      : (isDark ? Colors.white70 : Colors.black87)),
+            ),
+          ),
+        ],
       ),
     ),
   );
 }
 
 String _formatDateDisplay(DateTime dt, bool hasCustom) {
+  if (!hasCustom) {
+    return 'At Leisure • Complete anytime';
+  }
   final now = DateTime.now();
   final isToday = dt.year == now.year && dt.month == now.month && dt.day == now.day;
   final tomorrow = now.add(const Duration(days: 1));
@@ -1002,3 +1200,100 @@ String _formatDateDisplay(DateTime dt, bool hasCustom) {
     return DateFormat('EEE, MMM d, y').format(dt);
   }
 }
+
+Widget _buildFrequencyChip(
+  String label,
+  RecurrenceFrequency value,
+  RecurrenceFrequency selectedValue,
+  VoidCallback onTap,
+  bool isDark,
+) {
+  final isSelected = value == selectedValue;
+  const primaryColor = Color(0xFF0058BE);
+  return InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(8),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? primaryColor
+            : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF1F5F9)),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isSelected ? primaryColor : (isDark ? Colors.white12 : Colors.black12),
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 12,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          color: isSelected
+              ? Colors.white
+              : (isDark ? Colors.white70 : Colors.black87),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildWeekdayPresetPill(
+  String label,
+  VoidCallback onTap,
+  bool isSelected,
+  bool isDark,
+) {
+  const primaryColor = Color(0xFF0058BE);
+  return InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(6),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? primaryColor.withOpacity(0.15)
+            : (isDark ? Colors.white.withOpacity(0.04) : Colors.white),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isSelected
+              ? primaryColor
+              : (isDark ? Colors.white24 : Colors.grey[400]!),
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 10.5,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          color: isSelected
+              ? primaryColor
+              : (isDark ? Colors.white70 : const Color(0xFF475569)),
+        ),
+      ),
+    ),
+  );
+}
+
+String _formatWeekdaySummary(List<int> days) {
+  if (days.isEmpty) return 'Repeats every week';
+  if (days.length == 7) return 'Every single day (Mon–Sun)';
+  if (days.length == 5 &&
+      days.contains(1) &&
+      days.contains(2) &&
+      days.contains(3) &&
+      days.contains(4) &&
+      days.contains(5)) {
+    return 'Every weekday (Mon–Fri)';
+  }
+  if (days.length == 2 && days.contains(6) && days.contains(7)) {
+    return 'Every weekend (Sat & Sun)';
+  }
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  final names = days.map((d) => dayNames[d - 1]).join(', ');
+  return 'Every $names';
+}
+

@@ -5,8 +5,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:label="Flow Todo"
@@ -43,10 +43,12 @@
 
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
-            android:exported="false" />
+            android:exported="false"
+            android:enabled="true" />
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
-            android:exported="false">
+            android:exported="false"
+            android:enabled="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />

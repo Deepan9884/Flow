@@ -27,8 +27,23 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       final db = _isar;
       if (db == null) return;
       final tasks = await db.tasks.where().findAll();
+
+      // Self-healing: Repair any legacy tasks where due date was erroneously before start time
+      for (final t in tasks) {
+        if (t.reminderAt != null && t.dueDate != null && t.dueDate!.isBefore(t.reminderAt!)) {
+          final repaired = t.copyWith(
+            dueDate: t.reminderAt!.add(const Duration(minutes: 30)),
+            updatedAt: DateTime.now(),
+          );
+          await db.writeTxn(() async {
+            await db.tasks.put(repaired);
+          });
+        }
+      }
+
+      final freshTasks = await db.tasks.where().findAll();
       // Sort tasks: uncompleted first, then by priority (descending), then by due date
-      _sortAndSetState(tasks);
+      _sortAndSetState(freshTasks);
     } catch (e) {
       debugPrint('Flow TaskNotifier load failed: $e');
     }
@@ -87,11 +102,16 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     RecurrenceRule? recurrence,
   }) async {
     final now = DateTime.now();
+    DateTime? effectiveDueDate = dueDate;
+    if (effectiveDueDate != null && reminderAt != null && effectiveDueDate.isBefore(reminderAt)) {
+      effectiveDueDate = reminderAt.add(const Duration(minutes: 30));
+    }
+
     final task = Task(
       uuid: const Uuid().v4(),
       title: title,
       notes: notes,
-      dueDate: dueDate,
+      dueDate: effectiveDueDate,
       reminderAt: reminderAt,
       priority: priority,
       categoryIds: categoryIds,
@@ -133,6 +153,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
       await NotificationService.cancelTaskReminder(taskId);
       // Recurring tasks spawn their next occurrence on completion.
       await _spawnNextOccurrence(updatedTask);
+    } else {
+      await _scheduleIfEnabled(updatedTask);
     }
 
     await _loadTasks();
@@ -245,8 +267,15 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     if (taskIndex == -1) return;
 
     final task = state[taskIndex];
+    DateTime? updatedDueDate = task.dueDate;
+    // If start time is moved past due date, slide due date forward to preserve logic
+    if (reminderAt != null && updatedDueDate != null && reminderAt.isAfter(updatedDueDate)) {
+      updatedDueDate = reminderAt.add(const Duration(minutes: 30));
+    }
+
     final updatedTask = task.copyWith(
       reminderAt: reminderAt,
+      dueDate: updatedDueDate,
       updatedAt: DateTime.now(),
     );
 
@@ -266,8 +295,14 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     if (taskIndex == -1) return;
 
     final task = state[taskIndex];
+    DateTime? clampedDueDate = dueDate;
+    // Completion target cannot precede start time
+    if (clampedDueDate != null && task.reminderAt != null && clampedDueDate.isBefore(task.reminderAt!)) {
+      clampedDueDate = task.reminderAt!.add(const Duration(minutes: 30));
+    }
+
     final updatedTask = task.copyWith(
-      dueDate: dueDate,
+      dueDate: clampedDueDate,
       updatedAt: DateTime.now(),
     );
 
@@ -291,9 +326,14 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     if (taskIndex == -1) return;
 
     final task = state[taskIndex];
+    DateTime? finalDue = dueDate;
+    if (startTime != null && finalDue != null && finalDue.isBefore(startTime)) {
+      finalDue = startTime.add(const Duration(minutes: 30));
+    }
+
     final updatedTask = task.copyWith(
       reminderAt: startTime,
-      dueDate: dueDate,
+      dueDate: finalDue,
       updatedAt: DateTime.now(),
     );
 
@@ -303,6 +343,24 @@ class TaskNotifier extends StateNotifier<List<Task>> {
 
     await NotificationService.cancelTaskReminder(taskId);
     await _scheduleIfEnabled(updatedTask);
+
+    await _loadTasks();
+  }
+
+  /// Updates a task's recurrence pattern (none, daily, weekly with days, monthly).
+  Future<void> updateTaskRecurrence(String taskId, RecurrenceRule? recurrence) async {
+    final taskIndex = state.indexWhere((t) => t.uuid == taskId);
+    if (taskIndex == -1) return;
+
+    final task = state[taskIndex];
+    final updatedTask = task.copyWith(
+      recurrence: recurrence,
+      updatedAt: DateTime.now(),
+    );
+
+    await _guardedWrite((db) async {
+      await db.tasks.put(updatedTask);
+    });
 
     await _loadTasks();
   }

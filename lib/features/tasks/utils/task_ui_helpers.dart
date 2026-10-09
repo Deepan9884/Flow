@@ -60,3 +60,35 @@ String recurrenceLabel(RecurrenceFrequency frequency) {
       return 'Does not repeat';
   }
 }
+
+String formatRecurrenceRule(RecurrenceRule? rule) {
+  if (rule == null || rule.frequency == RecurrenceFrequency.none) {
+    return 'Does not repeat';
+  }
+  switch (rule.frequency) {
+    case RecurrenceFrequency.daily:
+      return 'Daily';
+    case RecurrenceFrequency.monthly:
+      return 'Monthly';
+    case RecurrenceFrequency.weekly:
+      final days = rule.daysOfWeek;
+      if (days.isEmpty) return 'Weekly';
+      if (days.length == 7) return 'Every Day';
+      if (days.length == 5 &&
+          days.contains(1) &&
+          days.contains(2) &&
+          days.contains(3) &&
+          days.contains(4) &&
+          days.contains(5)) {
+        return 'Weekdays (Mon–Fri)';
+      }
+      if (days.length == 2 && days.contains(6) && days.contains(7)) {
+        return 'Weekends (Sat–Sun)';
+      }
+      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      final labels = days.map((d) => dayNames[d - 1]).join(', ');
+      return 'Every $labels';
+    case RecurrenceFrequency.none:
+      return 'Does not repeat';
+  }
+}

@@ -22,11 +22,11 @@ void main() async {
     debugPrint('AppDatabase.init error: $e\n$stack');
   }
 
-  // Notifications must never block or break launch: schedule init after the
-  // first frame, fire-and-forget, with all errors swallowed inside the service.
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(NotificationService.init());
-  });
+  // Initialize notifications eagerly so scheduled alarms can fire even when
+  // the app is in the background. Errors are swallowed inside the service.
+  try {
+    await NotificationService.init();
+  } catch (_) {}
 
   // Never white-screen: render a branded fallback when a widget throws.
   ErrorWidget.builder = (details) {

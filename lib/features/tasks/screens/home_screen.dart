@@ -34,6 +34,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final tasks = ref.watch(taskListProvider);
     final categories = ref.watch(categoryListProvider);
     final appWallpaperPath = ref.watch(themeProvider).appWallpaperPath;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Filter tasks based on selected category and search query
     final filteredTasks = tasks.where((task) {
@@ -47,7 +48,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Priority & Custom Banner tasks for top carousel (Uncompleted & (High/Critical priority OR custom wallpaper banner))
     final featuredTasks = tasks.where((t) =>
         !t.isCompleted &&
-        (t.priority >= 2 || (t.wallpaperPath != null && t.wallpaperPath!.isNotEmpty && File(t.wallpaperPath!).existsSync()))).toList();
+        (t.priority >= 2 || (t.wallpaperPath != null && t.wallpaperPath!.isNotEmpty))).toList();
 
     return Scaffold(
       body: Stack(
@@ -445,6 +446,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     Text(
                                       formatDate(task.dueDate!),
                                       style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                                    ),
+                                    const SizedBox(width: 10),
+                                  ] else ...[
+                                    Icon(Icons.spa_rounded, size: 12, color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'At Leisure',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
+                                      ),
                                     ),
                                     const SizedBox(width: 10),
                                   ],

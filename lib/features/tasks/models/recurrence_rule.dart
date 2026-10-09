@@ -33,3 +33,29 @@ class RecurrenceRule with _$RecurrenceRule {
     );
   }
 }
+
+extension RecurrenceRuleExtension on RecurrenceRule {
+  /// Decodes selected days of week for weekly recurrence.
+  /// Weekdays are 1 = Monday .. 7 = Sunday (matching DateTime.weekday).
+  List<int> get daysOfWeek {
+    if (frequency != RecurrenceFrequency.weekly) return const [];
+    if (interval <= 1) return const [];
+    final days = <int>[];
+    for (int d = 1; d <= 7; d++) {
+      if ((interval & (1 << d)) != 0) {
+        days.add(d);
+      }
+    }
+    return days;
+  }
+
+  /// Creates a weekly recurrence rule from a list of weekdays (1..7).
+  static RecurrenceRule weeklyWithDays(List<int> days) {
+    if (days.isEmpty) {
+      return const RecurrenceRule(frequency: RecurrenceFrequency.weekly, interval: 1);
+    }
+    final mask = days.fold<int>(0, (acc, d) => acc | (1 << d));
+    return RecurrenceRule(frequency: RecurrenceFrequency.weekly, interval: mask);
+  }
+}
+

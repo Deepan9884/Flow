@@ -7,6 +7,7 @@ import '../../tasks/providers/task_provider.dart';
 import '../../categories/providers/category_provider.dart';
 import '../../../services/backup_service.dart';
 import '../../../services/notification_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -66,21 +67,77 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               _buildSettingItem(
-                Icons.volume_up_rounded,
-                'Test Notification & Sound',
+                Icons.volume_off_rounded,
+                'Silence Active Alert Sound',
                 theme.isDark,
-                trailing: const Icon(Icons.send_rounded, size: 18, color: Color(0xFF0058BE)),
+                trailing: const Icon(Icons.stop_circle_outlined, size: 20, color: Colors.redAccent),
                 onTap: () async {
-                  await NotificationService.showTestNotification();
+                  await NotificationService.stopActiveSoundNotifications();
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('🔔 Test notification sent! Check your notification bar.'),
+                        content: Text('Active alert sounds silenced'),
                         duration: Duration(seconds: 2),
-                        behavior: SnackBarBehavior.floating,
                       ),
                     );
                   }
+                },
+              ),
+              _buildSettingItem(
+                Icons.alarm_on_rounded,
+                'Exact Alarms & Reminders',
+                theme.isDark,
+                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                onTap: () async {
+                  final allowed = await NotificationService.canScheduleExactAlarms();
+                  if (!context.mounted) return;
+                  if (allowed) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Exact Alarms & Reminders permission is active and granted!'),
+                        duration: Duration(seconds: 3),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  } else {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                            SizedBox(width: 8),
+                            Text('Permission Needed'),
+                          ],
+                        ),
+                        content: const Text(
+                          'Exact Alarms permission is currently NOT granted by Android.\n\nPlease tap "Grant Permission" and turn ON "Allow setting alarms and reminders" for Flow.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              NotificationService.requestExactAlarmsPermission();
+                            },
+                            child: const Text('Grant Permission'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                },
+              ),
+              _buildSettingItem(
+                Icons.battery_charging_full_rounded,
+                'App Info & Battery (No Restrictions)',
+                theme.isDark,
+                trailing: const Icon(Icons.open_in_new_rounded, size: 16, color: Colors.grey),
+                onTap: () async {
+                  await openAppSettings();
                 },
               ),
               _buildSettingItem(

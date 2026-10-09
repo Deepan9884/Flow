@@ -7,6 +7,7 @@ import '../../tasks/models/task.dart';
 import '../../categories/providers/category_provider.dart';
 import '../../../widgets/task_banner_card.dart';
 import '../../tasks/widgets/task_detail_sheet.dart';
+import '../../tasks/utils/recurrence.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -26,12 +27,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   List<Task> _getTasksForDay(DateTime day, List<Task> tasks) {
-    bool sameDay(DateTime d) => d.year == day.year && d.month == day.month && d.day == day.day;
-    return tasks.where((t) {
-      if (t.dueDate != null && sameDay(t.dueDate!)) return true;
-      if (t.reminderAt != null && sameDay(t.reminderAt!)) return true;
-      return false;
-    }).toList();
+    return tasks.where((t) => taskOccursOnDay(t, day)).toList();
   }
 
   @override

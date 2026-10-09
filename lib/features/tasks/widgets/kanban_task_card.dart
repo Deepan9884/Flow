@@ -411,7 +411,7 @@ class KanbanTaskCard extends StatelessWidget {
                           ),
 
                           // Footer metadata: Subtasks count, Due date, Drag handle
-                          if (totalSubtasks > 0 || formattedDueDate != null || task.soundPath != null) ...[
+                          if (totalSubtasks > 0 || formattedDueDate != null || task.soundPath != null || (task.dueDate == null && task.reminderAt == null)) ...[
                             const SizedBox(height: 10),
                             Row(
                               children: [
@@ -457,6 +457,44 @@ class KanbanTaskCard extends StatelessWidget {
                                                 : (isDark
                                                     ? Colors.white60
                                                     : Colors.black54),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ] else if (task.dueDate == null && task.reminderAt == null) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? const Color(0xFF065F46).withOpacity(0.3)
+                                          : const Color(0xFFD1FAE5),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.spa_rounded,
+                                          size: 11,
+                                          color: isDark
+                                              ? const Color(0xFF6EE7B7)
+                                              : const Color(0xFF047857),
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          'At Leisure',
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark
+                                                ? const Color(0xFF6EE7B7)
+                                                : const Color(0xFF047857),
                                           ),
                                         ),
                                       ],

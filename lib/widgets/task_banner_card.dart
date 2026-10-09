@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../features/tasks/models/task.dart';
+import '../features/tasks/models/recurrence_rule.dart';
 import '../features/categories/models/category.dart';
 import '../features/tasks/utils/task_ui_helpers.dart';
+import '../services/notification_service.dart';
 import 'tilt_banner.dart';
 
 /// Resolves a human-readable category label for a task's first category id.
@@ -45,6 +47,18 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
   static StreamSubscription<PlayerState>? _playerSub;
   bool _isPlaying = false;
 
+  static Future<void> stopAllPreviews() async {
+    if (_sharedPlayer != null) {
+      await _sharedPlayer!.stop();
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    NotificationService.registerAudioStopCallback(stopAllPreviews);
+  }
+
   @override
   void dispose() {
     // If this specific card is playing when disposed, stop it.
@@ -81,6 +95,7 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
       await _playerSub?.cancel();
       _playerSub = _sharedPlayer!.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed) {
+          _sharedPlayer?.stop();
           if (mounted) {
             setState(() {
               _isPlaying = false;
@@ -274,6 +289,24 @@ class _TaskBannerCardState extends State<TaskBannerCard> {
                     const SizedBox(width: 4),
                     Text(
                       formatDate(widget.task.dueDate!),
+                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    ),
+                    const SizedBox(width: 8),
+                  ] else if (widget.task.reminderAt == null) ...[
+                    const Icon(Icons.spa_rounded, size: 12, color: Colors.white70),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'At Leisure',
+                      style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (widget.task.recurrence != null &&
+                      widget.task.recurrence!.frequency != RecurrenceFrequency.none) ...[
+                    const Icon(Icons.repeat_rounded, size: 13, color: Colors.white70),
+                    const SizedBox(width: 3),
+                    Text(
+                      formatRecurrenceRule(widget.task.recurrence),
                       style: const TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                     const SizedBox(width: 8),

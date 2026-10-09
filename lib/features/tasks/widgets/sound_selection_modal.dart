@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../services/media_import_service.dart';
-import '../../../services/notification_service.dart';
 
 /// Shows an intuitive modal to choose between System Default Chime,
 /// Instant Notification Testing, or Custom Audio File import (from Drive/Storage).
@@ -80,7 +79,7 @@ Future<void> showSoundSelectionModal({
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Configure ringtone & test notifications',
+                            'Configure notification ringtone',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 12,
@@ -171,105 +170,6 @@ Future<void> showSoundSelectionModal({
                         ),
                         if (!isCustomActive)
                           const Icon(Icons.check_circle_rounded, color: Color(0xFF0058BE), size: 22),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // 2. Instant Notification Test Button
-                InkWell(
-                  onTap: () async {
-                    await NotificationService.showTestNotification(
-                      customSoundPath: currentSoundPath,
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Row(
-                            children: [
-                              Icon(Icons.notifications_active_rounded, color: Colors.white, size: 18),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text('🔔 Test notification fired! Check your notification bar.'),
-                              ),
-                            ],
-                          ),
-                          duration: Duration(seconds: 3),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: Colors.green.withOpacity(0.4),
-                        width: 1.2,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.18),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.volume_up_rounded,
-                            color: Colors.green,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Test Notification & Sound Now',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Sends an instant alert so you can hear the sound and verify the banner',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 11,
-                                  color: isDark ? Colors.white60 : Colors.black54,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'TEST',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
